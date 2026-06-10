@@ -1,0 +1,18 @@
+{
+  "name": "Social Media Auto Post Agent",
+  "short_name": "SMedia Post",
+  "description": "Social Media Agent for Automated Dealership Posting, AI Copywriting, and Campaign Syncing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090714",
+  "theme_color": "#5a24f5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/isometric/512/shield.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText } from "lucide-react";
+import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText, LogOut } from "lucide-react";
 import { CarAnalysisResult, ActiveEnhancements, AuditLogEntry, SocialChannel, PostQueueItem, SoundtrackItem } from "./types";
 import { CAR_PRESETS } from "./presets";
 import IntakeSection from "./components/IntakeSection";
@@ -9,8 +9,10 @@ import FlyerTemplateSection from "./components/FlyerTemplateSection";
 import SocialSection from "./components/SocialSection";
 import AnalyticsSection from "./components/AnalyticsSection";
 import ITDeptSection from "./components/ITDeptSection";
+import LoginScreen from "./components/LoginScreen";
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   // Global View Mode: Toggle between standard "operations" or "it_dept" administration
   const [viewMode, setViewMode] = useState<"operations" | "it_dept">("operations");
 
@@ -197,8 +199,12 @@ export default function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-tr from-[#ddf6f4] to-[#f0fdfc] text-slate-800 font-sans transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-gradient-to-tr from-[#ddf6f4] to-[#f0fdfc] text-slate-800 font-sans transition-colors duration-200 animate-fade-in">
       
       {/* Sleek Design Theme Header */}
       <header className="h-16 flex items-center justify-between px-6 bg-white/80 border-b border-slate-200 backdrop-blur-md sticky top-0 z-50 shadow-sm shadow-slate-100/50">
@@ -233,25 +239,36 @@ export default function App() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            <span className="text-xs font-semibold text-emerald-700">SECURE SHELL RUNTIME</span>
+            <span className="text-xs font-semibold text-emerald-750">SECURE SHELL RUNTIME</span>
           </div>
           
-          <div className="flex items-center space-x-3 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs">
-            <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-            <div className="text-slate-600 font-mono font-semibold flex items-center space-x-1 font-mono">
-              <span>SB-90122-TX</span>
-            </div>
+          <div className="hidden md:flex items-center space-x-2 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs">
+            <Activity className="w-3.5 h-3.5 text-emerald-650 animate-pulse" />
+            <span className="text-slate-600 font-mono font-semibold">SB-90122-TX</span>
           </div>
 
           <button
             onClick={resetPipeline}
-            className="p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-500 hover:text-slate-900 rounded-lg transition hover:cursor-pointer"
+            className="p-2 sm:p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-500 hover:text-slate-900 rounded-lg transition hover:cursor-pointer flex items-center justify-center shrink-0"
             title="Reset Workspaces"
           >
             <RotateCcw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => {
+              if (confirm("Are you sure you want to log out and lock the session?")) {
+                setIsAuthenticated(false);
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 sm:p-1.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 text-rose-600 hover:text-rose-800 rounded-lg shadow-sm shadow-rose-600/5 transition hover:cursor-pointer font-bold text-xs shrink-0 select-none"
+            title="Lock Session / Logout"
+          >
+            <LogOut className="w-4 h-4 text-rose-600" />
+            <span className="inline-block">Log Out</span>
           </button>
         </div>
       </header>
