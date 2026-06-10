@@ -1,0 +1,8 @@
+{
+  "name": "Auto Showcase Agent",
+  "description": "An interactive, secure automated agent dashboard for car photo intake, AI model detection, layout collage creation, social scheduling, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
