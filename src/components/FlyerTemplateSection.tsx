@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
+import html2canvas from "html2canvas";
 import { 
   Building2, Phone, Mail, MapPin, Download, Sparkles, CheckCircle, 
   RotateCcw, RefreshCw, FileText, Plus, Trash2, Sliders, Palette, Info, CreditCard,
-  Music, Share2, Volume2, ExternalLink, ChevronDown, Upload
+  Music, Share2, Volume2, ExternalLink, ChevronDown, Upload, FolderOpen, FolderPlus
 } from "lucide-react";
 import { CarAnalysisResult, SoundtrackItem } from "../types";
 
@@ -12,6 +13,8 @@ interface FlyerTemplateSectionProps {
   addAuditLog: (level: "INFO" | "WARNING" | "SECURITY" | "SUCCESS", category: any, message: string) => void;
   soundtracks: SoundtrackItem[];
   setSoundtracks: React.Dispatch<React.SetStateAction<SoundtrackItem[]>>;
+  folderCounts?: any;
+  setFolderCounts?: React.Dispatch<React.SetStateAction<any>>;
 }
 
 interface VehicleListing {
@@ -31,7 +34,15 @@ export interface TextFieldFormat {
   sizeMultiplier: number;
 }
 
-export default function FlyerTemplateSection({ analysis, activeImages, addAuditLog, soundtracks, setSoundtracks }: FlyerTemplateSectionProps) {
+export default function FlyerTemplateSection({ 
+  analysis, 
+  activeImages, 
+  addAuditLog, 
+  soundtracks, 
+  setSoundtracks,
+  folderCounts,
+  setFolderCounts
+}: FlyerTemplateSectionProps) {
   // Customizable formatting states for the 4 text boxes in Sego Flyer template
   const [formatDealerCode, setFormatDealerCode] = useState<TextFieldFormat>({
     isItalic: true,
@@ -220,6 +231,8 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string>("Showroom Layouts");
+  const [isSavedToFolder, setIsSavedToFolder] = useState<boolean>(false);
 
   // Custom dropdown and local audio attach states for Share with Immersive Soundtrack
   const [isMusicDropdownOpen, setIsMusicDropdownOpen] = useState(false);
@@ -358,12 +371,12 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
   const [isExporting, setIsExporting] = useState(false);
   const flyerContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto load active vehicle details on mount if available
+  // Auto load active vehicle details on mount or anytime the photos/analysis from the initial process update
   useEffect(() => {
     if (analysis) {
       importActiveVehicleToFlyer();
     }
-  }, [analysis]);
+  }, [analysis, activeImages]);
 
   // Import info directly from Step 1 secure intake
   const importActiveVehicleToFlyer = () => {
@@ -501,6 +514,47 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
       // Activate Sharing Modal
       setShowShareModal(true);
     }, 1500);
+  };
+
+  // Real-world high resolution canvas-based download for flyers or business cards directly onto desktop
+  const downloadAsImage = async () => {
+    if (!flyerContainerRef.current) return;
+    try {
+      setIsExporting(true);
+      addAuditLog("INFO", "COMPOSITE", `Assembling micro-layers and fonts for high-fidelity compile...`);
+
+      // Target the first child element of flyerContainerRef so we ONLY download the card/poster itself, excluding grey background frames
+      const targetElement = (flyerContainerRef.current.firstElementChild || flyerContainerRef.current) as HTMLElement;
+
+      const canvas = await html2canvas(targetElement, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        scale: 3, // Premium ultra sharp 300 DPI layout matching professional print standards
+        logging: false
+      });
+
+      const fileExtension = "png";
+      const fileName = `${selectedTemplate === "business_card" ? "Business_Card" : "Showroom_Flyer"}_${dealerName.replace(/\s+/g, "_")}_${Date.now()}.${fileExtension}`;
+      
+      const imgDataUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = imgDataUrl;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      addAuditLog("SUCCESS", "COMPOSITE", `Exported document compiled successfully! Saved high-res "${fileName}" directly on your desktop.`);
+      
+      // Auto open share modal on success to offer secondary operations
+      setShowShareModal(true);
+    } catch (err) {
+      console.warn("Canvas capture error:", err);
+      addAuditLog("WARNING", "COMPOSITE", `High-fidelity download aborted: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -1184,7 +1238,7 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
               <RotateCcw className="w-4 h-4" />
             </button>
             <button
-              onClick={handleExportFlyer}
+              onClick={downloadAsImage}
               disabled={isExporting}
               className={`flex-1 py-2.5 text-xs font-bold text-white rounded-lg transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer ${activeTheme.accent} ${activeTheme.accentHover}`}
             >
@@ -1194,12 +1248,16 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Assembling Vectors...</span>
+                  <span>Saving to Desktop...</span>
                 </>
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  <span>Download High-Res 300 DPI Flyer</span>
+                  <span>
+                    {selectedTemplate === "business_card" 
+                      ? "Download Business Card (PNG)" 
+                      : "Download High-Res 300 DPI Flyer"}
+                  </span>
                 </>
               )}
             </button>
@@ -1640,131 +1698,160 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
                 <div className={`absolute bottom-0 left-0 w-24 h-4 transform -skew-x-12 opacity-80 ${activeTheme.accent}`} />
                 
                 {cardBackSide === 'front' ? (
-                  /* FRONT SURFACE: Representative name & Contact points */
-                  <div className="p-6 flex flex-col justify-between h-full relative z-10 text-left">
+                  /* FRONT SURFACE: Representative name & Contact points (Divided automatically to display car photo from process) */
+                  <div className="flex h-full w-full relative z-10">
                     
-                    {/* Header: Sego Logo + Subheading */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-col select-none text-left">
-                        {isEditingLogo ? (
-                          <div className="flex items-center space-x-1 border border-indigo-400 bg-white shadow-md p-1 rounded-lg z-25">
-                            <input
-                              type="text"
-                              value={dealerName}
-                              onChange={(e) => {
-                                setDealerName(e.target.value);
-                              }}
-                              onBlur={() => setIsEditingLogo(false)}
-                              onKeyDown={(e) => {
-                                  if (e.key === "Enter") setIsEditingLogo(false);
-                              }}
-                              className="px-2 py-0.5 text-[9px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded outline-none w-20 uppercase font-mono"
-                              placeholder="SEGO-BAY"
-                              autoFocus
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingLogo(false)}
-                              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[7.5px] font-bold px-1.5 py-0.5 rounded cursor-pointer"
-                            >
-                              Done
-                            </button>
-                          </div>
-                        ) : (
-                          <div 
-                            onClick={() => setIsEditingLogo(true)}
-                            className="flex items-baseline leading-none cursor-pointer group hover:bg-slate-800 hover:ring-2 hover:ring-purple-400/50 rounded-md p-0.5 transition-all relative"
-                            title="Click to edit branding logo (updates dealer code)"
-                          >
-                            <span 
-                              className="pr-0.5"
-                              style={{
-                                ...getFormatStyles(formatDealerCode, 1.25), // text-[20px] is ~1.25em
-                                color: formatDealerCode.color === "themeAccent" 
-                                  ? (activeColorTheme === 'sego_red' ? '#cf1520' : undefined)
-                                  : formatDealerCode.color
-                              }}
-                            >
-                              {dealerName ? dealerName.charAt(0) : "S"}
-                            </span>
-                            <span 
-                              className="uppercase"
-                              style={{
-                                ...getFormatStyles(formatDealerCode, 0.93), // text-[15px] is ~0.93em
-                                color: formatDealerCode.color === "themeAccent" ? "#ffffff" : formatDealerCode.color
-                              }}
-                            >
-                              {dealerName ? dealerName.slice(1) : "EGO-BAY"}
-                            </span>
-                            <span className="absolute -top-3.5 left-2 bg-purple-600 text-white text-[7px] font-medium tracking-wide px-1.5 py-0.5 rounded shadow-md opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none uppercase">
-                              ✏️ Edit Logo
-                            </span>
-                          </div>
-                        )}
-                        <span 
-                          className="tracking-[0.25em] leading-none"
-                          style={{
-                            ...getFormatStyles(formatSloganHeader, 0.4), // 6.5px is ~0.4em
-                            color: formatSloganHeader.color === "themeAccent" ? undefined : formatSloganHeader.color
-                          }}
-                        >
-                          {dealerSlogan}
-                        </span>
-                      </div>
+                    {/* Left Pane: Synchronized Car Photo (Displayed automatically!) */}
+                    <div className="w-1/3 h-full border-r border-slate-800 bg-slate-950 relative overflow-hidden shrink-0 flex items-center justify-center">
+                      <img 
+                        src={singleMainImage || "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=400"} 
+                        alt="Initial Intake Car"
+                        className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent pointer-events-none" />
+                      <span className="absolute bottom-1.5 left-1.5 right-1.5 text-[6.5px] font-mono tracking-wider text-[#f8fafc]/90 uppercase truncate text-center font-bold bg-slate-950/60 px-1 py-0.5 rounded backdrop-blur-[1px]">
+                        🚗 {analysis?.detectedMake || "ACTIVE"} SHOWROOM
+                      </span>
+                    </div>
 
-                      <div className="text-right flex flex-col items-end">
-                        <span className={`text-[7px] font-bold tracking-widest text-slate-400 block uppercase`}>
-                          Showroom Certified Agent
-                        </span>
-                        <div className="flex space-x-1 mt-1 opacity-85">
-                          <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.accent}`} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    {/* Right Pane: Original Info Details */}
+                    <div className="w-2/3 p-4 flex flex-col justify-between h-full relative text-left">
+                      
+                      {/* Header: Sego Logo + Subheading */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col select-none text-left">
+                          {isEditingLogo ? (
+                            <div className="flex items-center space-x-1 border border-indigo-400 bg-white shadow-md p-1 rounded-lg z-25">
+                              <input
+                                type="text"
+                                value={dealerName}
+                                onChange={(e) => {
+                                  setDealerName(e.target.value);
+                                }}
+                                onBlur={() => setIsEditingLogo(false)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") setIsEditingLogo(false);
+                                }}
+                                className="px-2 py-0.5 text-[9px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded outline-none w-20 uppercase font-mono"
+                                placeholder="SEGO-BAY"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingLogo(false)}
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white text-[7.5px] font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          ) : (
+                            <div 
+                              onClick={() => setIsEditingLogo(true)}
+                              className="flex items-baseline leading-none cursor-pointer group hover:bg-slate-800 hover:ring-2 hover:ring-purple-400/50 rounded-md p-0.5 transition-all relative"
+                              title="Click to edit branding logo (updates dealer code)"
+                            >
+                              <span 
+                                className="pr-0.5"
+                                style={{
+                                  ...getFormatStyles(formatDealerCode, 1.1),
+                                  color: formatDealerCode.color === "themeAccent" 
+                                    ? (activeColorTheme === 'sego_red' ? '#cf1520' : undefined)
+                                    : formatDealerCode.color
+                                }}
+                              >
+                                {dealerName ? dealerName.charAt(0) : "S"}
+                              </span>
+                              <span 
+                                className="uppercase font-extrabold tracking-tight"
+                                style={{
+                                  ...getFormatStyles(formatDealerCode, 0.85),
+                                  color: formatDealerCode.color === "themeAccent" ? "#ffffff" : formatDealerCode.color
+                                }}
+                              >
+                                {dealerName ? dealerName.slice(1) : "EGO-BAY"}
+                              </span>
+                              <span className="absolute -top-3.5 left-2 bg-purple-600 text-white text-[7px] font-medium tracking-wide px-1.5 py-0.5 rounded shadow-md opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none uppercase">
+                                ✏️ Edit Logo
+                              </span>
+                            </div>
+                          )}
+                          <span 
+                            className="tracking-[0.25em] leading-none text-slate-400 block mt-0.5"
+                            style={{
+                              ...getFormatStyles(formatSloganHeader, 0.38),
+                              color: formatSloganHeader.color === "themeAccent" ? undefined : formatSloganHeader.color
+                            }}
+                          >
+                            {dealerSlogan}
+                          </span>
+                        </div>
+
+                        <div className="text-right flex flex-col items-end">
+                          <span className={`text-[6px] font-bold tracking-wider text-slate-400 block uppercase font-mono`}>
+                            CERTIFIED AGENT
+                          </span>
+                          <div className="flex space-x-1 mt-1 opacity-85">
+                            <span className={`w-1 h-1 rounded-full ${activeTheme.accent}`} />
+                            <span className="w-1 h-1 rounded-full bg-slate-600" />
+                            <span className="w-1 h-1 rounded-full bg-slate-400" />
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Middle: Name and title (Prominent styling) */}
-                    <div>
-                      <h3 className="text-lg font-extrabold tracking-tight text-white leading-none">
-                        {cardRepName}
-                      </h3>
-                      <h4 className={`text-[10px] font-mono tracking-wider font-semibold mt-1 ${activeTheme.textAccent}`}>
-                        {cardRepTitle}
-                      </h4>
-                      <p className="text-[8px] text-slate-400 max-w-[280px] mt-1.5 leading-tight">
-                        {cardSubtext}
-                      </p>
-                    </div>
-
-                    {/* Footer strip: Contact listings */}
-                    <div className="grid grid-cols-12 gap-1 border-t border-slate-800/80 pt-3 text-[8.5px] font-mono text-slate-300">
-                      
-                      <div className="col-span-4 flex items-center space-x-1">
-                        <Phone className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
-                        <span className="truncate">{dealerPhone}</span>
+                      {/* Middle: Name and title (Prominent styling) */}
+                      <div className="my-1.5">
+                        <h3 className="text-[13px] font-extrabold tracking-tight text-white leading-none">
+                          {cardRepName}
+                        </h3>
+                        <h4 className={`text-[8.5px] font-mono tracking-wider font-semibold mt-1 ${activeTheme.textAccent}`}>
+                          {cardRepTitle}
+                        </h4>
+                        <p className="text-[7.5px] text-slate-400 max-w-[240px] mt-1 leading-tight font-sans">
+                          {cardSubtext}
+                        </p>
                       </div>
 
-                      <div className="col-span-4 flex items-center space-x-1">
-                        <Mail className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
-                        <span className="truncate">{dealerEmail}</span>
-                      </div>
+                      {/* Footer strip: Contact listings */}
+                      <div className="grid grid-cols-12 gap-1 border-t border-slate-800/80 pt-2 text-[7.5px] font-mono text-slate-350">
+                        
+                        <div className="col-span-4 flex items-center space-x-0.5">
+                          <Phone className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
+                          <span className="truncate">{dealerPhone}</span>
+                        </div>
 
-                      <div className="col-span-4 flex items-center space-x-1 text-right justify-end truncate">
-                        <MapPin className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
-                        <span className="truncate pr-1">{dealerAddress.split(",")[0]}</span>
+                        <div className="col-span-4 flex items-center space-x-0.5">
+                          <Mail className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
+                          <span className="truncate">{dealerEmail}</span>
+                        </div>
+
+                        <div className="col-span-4 flex items-center space-x-0.5 text-right justify-end truncate">
+                          <MapPin className={`w-2.5 h-2.5 shrink-0 ${activeTheme.textAccent}`} />
+                          <span className="truncate pr-0.5">{dealerAddress.split(",")[0]}</span>
+                        </div>
+
                       </div>
 
                     </div>
-
                   </div>
                 ) : (
                   /* BACK SURFACE: Showroom Services & QR code simulation */
-                  <div className="p-6 flex flex-col justify-between h-full relative z-10 text-center items-center bg-slate-950">
-                    <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-5 ${activeTheme.accent}`} />
-                    <div className={`absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-5 ${activeTheme.accent}`} />
+                  <div className="p-6 flex flex-col justify-between h-full relative z-10 text-center items-center bg-slate-950 overflow-hidden">
+                    {/* Background Synced Image for Back Side (Displayed automatically!) */}
+                    <div className="absolute inset-0 z-0 opacity-15">
+                      <img 
+                        src={singleMainImage || "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=400"} 
+                        alt="Background Synced Car" 
+                        className="w-full h-full object-cover filter blur-[0.5px]"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-slate-950/45" />
+                    </div>
                     
-                    <div className="my-auto space-y-3.5 flex flex-col items-center">
+                    <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-5 pointer-events-none ${activeTheme.accent}`} />
+                    <div className={`absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-5 pointer-events-none ${activeTheme.accent}`} />
+                    
+                    <div className="my-auto space-y-3.5 flex flex-col items-center relative z-10">
                       <div className="flex flex-col select-none items-center">
                         {isEditingLogo ? (
                           <div className="flex items-center space-x-1 border border-indigo-400 bg-white shadow-md p-1 rounded-lg z-25">
@@ -1842,7 +1929,7 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
                       </p>
                     </div>
 
-                    <div className="w-full flex items-center justify-between text-[7px] font-mono text-slate-500 border-t border-slate-800/60 pt-3">
+                    <div className="w-full flex items-center justify-between text-[7px] font-mono text-slate-500 border-t border-slate-800/60 pt-3 relative z-10">
                       <span>Milestone Business Center • Kiambu road</span>
                       <span className="font-bold text-white uppercase tracking-wider">Premium Service & Flexible Financing</span>
                     </div>
@@ -1964,6 +2051,77 @@ export default function FlyerTemplateSection({ analysis, activeImages, addAuditL
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>LinkedIn Portal</span>
                   </button>
+                </div>
+
+                {/* Save File to Folder Section */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 text-left my-1.5">
+                  <div className="flex items-center space-x-1.5 pb-1 justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <FolderOpen className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Save File to Folder</span>
+                    </div>
+                    {isSavedToFolder && (
+                      <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 animate-pulse">
+                        Saved in virtual storage!
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedFolder}
+                      onChange={(e) => {
+                        setSelectedFolder(e.target.value);
+                        setIsSavedToFolder(false);
+                      }}
+                      className="flex-1 bg-white border border-slate-200 text-xs py-1.5 px-2.5 rounded-lg cursor-pointer font-sans outline-none focus:ring-2 focus:ring-purple-400"
+                    >
+                      <option value="Showroom Layouts">Showroom Layouts/</option>
+                      <option value="Showroom SoundMedia">Showroom SoundMedia/</option>
+                      <option value="Published">Published/</option>
+                      <option value="Car Media">Car Media/</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // 1. Physically trigger high resolution image download
+                        await downloadAsImage();
+                        
+                        // 2. Adjust local state for UI success feedback
+                        setIsSavedToFolder(true);
+                        
+                        // 3. Increment App-level virtual folderCounts state
+                        if (setFolderCounts) {
+                          setFolderCounts((prev: any) => {
+                            const keyMap: Record<string, string> = {
+                              "Showroom Layouts": "showroomLayouts",
+                              "Showroom SoundMedia": "soundmediaLayouts",
+                              "Published": "published",
+                              "Car Media": "carMedia"
+                            };
+                            const k = keyMap[selectedFolder];
+                            if (k && k in prev) {
+                              return {
+                                ...prev,
+                                [k]: (prev[k] || 0) + 1
+                              };
+                            }
+                            return prev;
+                          });
+                        }
+
+                        // 4. Register a premium audit log and alert
+                        const fileExt = "png";
+                        const fileName = `${selectedTemplate === "business_card" ? "Business_Card" : "Showroom_Flyer"}_${dealerName.replace(/\s+/g, "_")}.${fileExt}`;
+                        addAuditLog("SUCCESS", "COMPOSITE", `Successfully saved certified file "${fileName}" into virtual folder container "/${selectedFolder}/"`);
+                        alert(`Successfully saved "${fileName}" to local folder "${selectedFolder}/" and initiated download to your computer!`);
+                      }}
+                      className={`text-xs font-bold py-1.5 px-3.5 rounded-lg transition duration-205 hover:scale-[1.03] active:scale-95 cursor-pointer flex items-center space-x-1 shrink-0 ${isSavedToFolder ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-sm'}`}
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                      <span>{isSavedToFolder ? "Saved!" : "Save to Folder"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <button

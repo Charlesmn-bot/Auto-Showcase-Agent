@@ -74,6 +74,13 @@ export default function App() {
     sharpness: 25,
     denoise: false,
     bgRemoved: false,
+    photoEdits: {
+      main: { brightness: 100, contrast: 100, sharpness: 25, denoise: false, bgRemoved: false },
+      top: { brightness: 100, contrast: 100, sharpness: 25, denoise: false, bgRemoved: false },
+      bottom: { brightness: 100, contrast: 105, sharpness: 40, denoise: true, bgRemoved: false },
+      left: { brightness: 100, contrast: 100, sharpness: 25, denoise: false, bgRemoved: false },
+      right: { brightness: 100, contrast: 100, sharpness: 25, denoise: false, bgRemoved: false },
+    },
     videoStabilize: true,
     videoCleanAudio: true,
     videoWatermark: true,
@@ -107,12 +114,26 @@ export default function App() {
   ]);
 
   // Social account profiles metrics (Step 5, 6)
-  const [socialChannels, setSocialChannels] = useState<SocialChannel[]>([
-    { id: "instagram", name: "Instagram", connected: true, engagementRate: 8.4, likes: 235, shares: 12, comments: 18, leads: 2 },
-    { id: "facebook", name: "Facebook", connected: true, engagementRate: 4.2, likes: 114, shares: 24, comments: 8, leads: 1 },
-    { id: "whatsapp", name: "WhatsApp Business", connected: false, engagementRate: 0.0, likes: 0, shares: 0, comments: 0, leads: 0 },
-    { id: "linkedin", name: "LinkedIn Professional", connected: false, engagementRate: 0.0, likes: 0, shares: 0, comments: 0, leads: 0 }
-  ]);
+  const [socialChannels, setSocialChannels] = useState<SocialChannel[]>(() => {
+    const saved = localStorage.getItem("showroom_social_channels");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback to defaults
+      }
+    }
+    return [
+      { id: "instagram", name: "Instagram", connected: true, username: "@segobay_luxury", avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=120", confirmedAt: "2026-06-11T00:00:00Z", engagementRate: 8.4, likes: 235, shares: 12, comments: 18, leads: 2 },
+      { id: "facebook", name: "Facebook", connected: true, username: "Sego Bay Motors Premium", avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120", confirmedAt: "2026-06-11T00:00:00Z", engagementRate: 4.2, likes: 114, shares: 24, comments: 8, leads: 1 },
+      { id: "whatsapp", name: "WhatsApp Business", connected: false, engagementRate: 0.0, likes: 0, shares: 0, comments: 0, leads: 0 },
+      { id: "linkedin", name: "LinkedIn Professional", connected: false, engagementRate: 0.0, likes: 0, shares: 0, comments: 0, leads: 0 }
+    ];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem("showroom_social_channels", JSON.stringify(socialChannels));
+  }, [socialChannels]);
 
   // Scheduled / Posted Campaign Queue (Step 5)
   const [postQueue, setPostQueue] = useState<PostQueueItem[]>([]);
@@ -525,6 +546,8 @@ export default function App() {
                     addAuditLog={addAuditLog}
                     soundtracks={soundtracks}
                     setSoundtracks={setSoundtracks}
+                    folderCounts={folderCounts}
+                    setFolderCounts={setFolderCounts}
                   />
                 )}
 

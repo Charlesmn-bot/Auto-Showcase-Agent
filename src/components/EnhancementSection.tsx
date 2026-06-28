@@ -16,6 +16,35 @@ export default function EnhancementSection({ analysis, images, enhancements, set
   const [showOriginal, setShowOriginal] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   
+  // Photo selection & local adjustment state
+  const [activePhotoKey, setActivePhotoKey] = useState<"main" | "top" | "bottom" | "left" | "right">("main");
+  const [localBrightness, setLocalBrightness] = useState(100);
+  const [localContrast, setLocalContrast] = useState(100);
+  const [localSharpness, setLocalSharpness] = useState(25);
+  const [localDenoise, setLocalDenoise] = useState(false);
+  const [localBgRemoved, setLocalBgRemoved] = useState(false);
+
+  // Track customized states visually on the thumbnails!
+  const [customizedPhotos, setCustomizedPhotos] = useState<Record<string, boolean>>({
+    main: true,
+  });
+
+  // Load photo specific settings into local sliders when selected photo changes
+  useEffect(() => {
+    const edit = enhancements.photoEdits?.[activePhotoKey] || {
+      brightness: 100,
+      contrast: 100,
+      sharpness: 25,
+      denoise: false,
+      bgRemoved: false
+    };
+    setLocalBrightness(edit.brightness);
+    setLocalContrast(edit.contrast);
+    setLocalSharpness(edit.sharpness);
+    setLocalDenoise(edit.denoise);
+    setLocalBgRemoved(edit.bgRemoved);
+  }, [activePhotoKey, enhancements.photoEdits]);
+
   // Video Simulation States
   const [isPlaying, setIsPlaying] = useState(true);
   const [activeClipIndex, setActiveClipIndex] = useState(0);
@@ -49,6 +78,50 @@ export default function EnhancementSection({ analysis, images, enhancements, set
     }));
   };
 
+  const savePhotoEnhancement = () => {
+    setEnhancements(prev => {
+      const currentEdits = prev.photoEdits || {};
+      return {
+        ...prev,
+        photoEdits: {
+          ...currentEdits,
+          [activePhotoKey]: {
+            brightness: localBrightness,
+            contrast: localContrast,
+            sharpness: localSharpness,
+            denoise: localDenoise,
+            bgRemoved: localBgRemoved
+          }
+        },
+        // Write the active photo's settings to the top level too just in case
+        brightness: activePhotoKey === "main" ? localBrightness : prev.brightness,
+        contrast: activePhotoKey === "main" ? localContrast : prev.contrast,
+        sharpness: activePhotoKey === "main" ? localSharpness : prev.sharpness,
+        denoise: activePhotoKey === "main" ? localDenoise : prev.denoise,
+        bgRemoved: activePhotoKey === "main" ? localBgRemoved : prev.bgRemoved,
+      };
+    });
+
+    setCustomizedPhotos(prev => ({
+      ...prev,
+      [activePhotoKey]: true
+    }));
+
+    const friendlyNames: Record<string, string> = {
+      main: "Main Cover Overview",
+      top: "Top (Cabin View)",
+      bottom: "Bottom (Alloy Rims)",
+      left: "Left Profile",
+      right: "Right Structure"
+    };
+
+    addAuditLog(
+      "SUCCESS", 
+      "ENHANCE", 
+      `Saved tailored enhancement parameters for "${friendlyNames[activePhotoKey]}": Brightness: ${localBrightness}%, Contrast: ${localContrast}%, Sharpness: +${localSharpness}%, Denoise: ${localDenoise ? "Active" : "Off"}, Background Studio Swap: ${localBgRemoved ? "Active" : "Off"}.`
+    );
+  };
+
   const applyEnhancements = () => {
     setIsApplying(true);
     addAuditLog("INFO", "ENHANCE", `Applying digital enhancement filters: photo sharpening, smart background clipping, noise reduction.`);
@@ -62,11 +135,27 @@ export default function EnhancementSection({ analysis, images, enhancements, set
   };
 
   // Generate CSS filter based on slider states for photo calibration
-  const getFilterStyle = (isOriginalOverride = false) => {
+  const getFilterStyle = (isOriginalOverride = false, customKey = activePhotoKey) => {
     if (isOriginalOverride) return {};
+
+    // For rendering a specific preview with its saved/local values
+    if (customKey !== activePhotoKey) {
+      const edit = enhancements.photoEdits?.[customKey] || {
+        brightness: 100,
+        contrast: 100,
+        sharpness: 25,
+        denoise: false,
+        bgRemoved: false
+      };
+      return {
+        filter: `brightness(${edit.brightness}%) contrast(${edit.contrast}%) saturate(${edit.brightness > 100 ? 104 : 100}%) blur(${edit.denoise ? "0.3px" : "0px"})`,
+        transition: "filter 0.2s ease-all"
+      };
+    }
+
     return {
-      filter: `brightness(${enhancements.brightness}%) contrast(${enhancements.contrast}%) saturate(${enhancements.brightness > 100 ? 105 : 100}%) blur(${enhancements.denoise ? "0.3px" : "0px"})`,
-      transition: "filter 0.2s ease-all"
+      filter: `brightness(${localBrightness}%) contrast(${localContrast}%) saturate(${localBrightness > 100 ? 105 : 100}%) blur(${localDenoise ? "0.3px" : "0px"})`,
+      transition: "filter 0.15s ease-all"
     };
   };
 
@@ -128,15 +217,14 @@ export default function EnhancementSection({ analysis, images, enhancements, set
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* LEFT COLUMN: COMPARISON OR SIMULATION VIEWER */}
+           {/* LEFT COLUMN: COMPARISON OR SIMULATION VIEWER */}
         <div className="lg:col-span-7 flex flex-col space-y-4">
           {tuningMode === "photo" ? (
             // PHOTO PREVIEW WORKSPACE
             <div className="flex flex-col space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-600 text-left block">
-                  {showOriginal ? "Showing: Original Intake Photo" : "Showing: AI-Tuned Studio Photo"}
+                  {showOriginal ? "Showing: Original Intake Photo" : `Showing AI-Tuned Photo: ${activePhotoKey === "main" ? "Cover View" : activePhotoKey === "top" ? "Cabin View" : activePhotoKey === "bottom" ? "Alloy Rims" : activePhotoKey === "left" ? "Left Profile" : "Right Structure"}`}
                 </span>
                 <button
                   onMouseDown={() => setShowOriginal(true)}
@@ -144,7 +232,7 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                   onMouseLeave={() => setShowOriginal(false)}
                   onTouchStart={() => setShowOriginal(true)}
                   onTouchEnd={() => setShowOriginal(false)}
-                  className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-755 border border-slate-300 px-3 py-1.5 rounded-lg font-semibold transition active:scale-95 select-none hover:cursor-pointer"
+                  className="text-[10px] bg-slate-105 hover:bg-slate-200 text-slate-755 border border-slate-300 px-3 py-1.5 rounded-lg font-semibold transition active:scale-95 select-none hover:cursor-pointer"
                 >
                   Hold to Compare Original
                 </button>
@@ -152,7 +240,7 @@ export default function EnhancementSection({ analysis, images, enhancements, set
 
               <div className="relative aspect-video w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center group shadow-inner">
                 {/* Showroom visual grid overlay if BG removed is active */}
-                {!showOriginal && enhancements.bgRemoved && (
+                {!showOriginal && localBgRemoved && (
                   <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/20 via-slate-950 to-slate-950 z-0">
                     <div className="absolute inset-x-0 bottom-0 h-1/3 bg-slate-900/40 blur-md rounded-t-full transform scale-x-125 z-0 border-t border-indigo-900/15"></div>
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#312e81_1px,transparent_1px),linear-gradient(to_bottom,#312e81_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20"></div>
@@ -161,17 +249,17 @@ export default function EnhancementSection({ analysis, images, enhancements, set
 
                 {/* Primary preview image */}
                 <img
-                  src={images.main}
+                  src={images[activePhotoKey]}
                   alt="Intelligent Tuned View"
                   style={getFilterStyle(showOriginal)}
                   className={`max-full max-h-full object-contain relative z-10 transition-transform duration-300 ${
-                    !showOriginal && enhancements.bgRemoved ? "scale-90" : "scale-100"
+                    !showOriginal && localBgRemoved ? "scale-90" : "scale-100"
                   }`}
                   referrerPolicy="no-referrer"
                 />
 
                 {/* Accent highlights representing sharpness */}
-                {!showOriginal && enhancements.sharpness > 40 && (
+                {!showOriginal && localSharpness > 40 && (
                   <div 
                     className="absolute inset-0 pointer-events-none border border-indigo-500/10 z-20 mix-blend-color-dodge opacity-50"
                     style={{ filter: "contrast(140%) brightness(105%)" }}
@@ -184,30 +272,53 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                 </span>
 
                 {/* Dynamic noise reduction filter simulation */}
-                {!showOriginal && !enhancements.denoise && (
+                {!showOriginal && !localDenoise && (
                   <div className="absolute inset-0 pointer-events-none bg-[url('data:image/svg+xml;utf8,<svg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22><filter id=%22noise%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22 opacity=%220.08%22/></svg>')] opacity-45 z-20" />
                 )}
               </div>
 
               {/* Angle selector panel */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: "Top (Cabin View)", url: images.top },
-                  { label: "Bottom (Alloy Rims)", url: images.bottom },
-                  { label: "Left Profile", url: images.left },
-                  { label: "Right Structure", url: images.right }
-                ].map((sub, i) => (
-                  <div key={i} className="bg-slate-50 rounded-lg p-1 border border-slate-200 flex flex-col items-center">
-                    <img
-                      src={sub.url}
-                      alt={sub.label}
-                      style={getFilterStyle(showOriginal)}
-                      className="w-full h-12 object-cover rounded"
-                      referrerPolicy="no-referrer"
-                    />
-                    <span className="text-[9px] text-slate-500 mt-1 truncate w-full text-center">{sub.label}</span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block text-left">
+                  🌐 Tap a snapshot thumbnail to display on main frame & enable selective enhancements
+                </span>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { key: "main", label: "Cover (Main View)", url: images.main },
+                    { key: "top", label: "Top (Cabin View)", url: images.top },
+                    { key: "bottom", label: "Bottom (Alloy Rims)", url: images.bottom },
+                    { key: "left", label: "Left Profile", url: images.left },
+                    { key: "right", label: "Right Structure", url: images.right }
+                  ].map((sub) => {
+                    const isSel = activePhotoKey === sub.key;
+                    const isCustomized = customizedPhotos[sub.key];
+                    return (
+                      <button
+                        key={sub.key}
+                        onClick={() => setActivePhotoKey(sub.key as any)}
+                        type="button"
+                        className={`bg-slate-50 hover:bg-slate-100 rounded-lg p-1.5 border-2 flex flex-col items-center transition relative cursor-pointer text-left focus:outline-none ${
+                          isSel ? "border-indigo-650 bg-indigo-50/40 font-bold shadow-xs scale-[1.02]" : "border-slate-200"
+                        }`}
+                        id={`thumbnail-select-${sub.key}`}
+                      >
+                        <img
+                          src={sub.url}
+                          alt={sub.label}
+                          style={getFilterStyle(false, sub.key as any)}
+                          className="w-full h-11 object-cover rounded"
+                          referrerPolicy="no-referrer"
+                        />
+                        <span className="text-[8px] text-slate-600 mt-1 truncate w-full text-center leading-tight">{sub.label}</span>
+                        {isCustomized && (
+                          <span className="absolute top-0.5 right-0.5 bg-emerald-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[7px] font-bold font-sans shadow-md border border-white">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
@@ -344,6 +455,17 @@ export default function EnhancementSection({ analysis, images, enhancements, set
             {tuningMode === "photo" ? (
               // SLIDERS FOR PHOTO WORKFLOW
               <div className="space-y-6 text-left">
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-2">
+                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest block">Now Editing Media Frame:</span>
+                  <span className="text-sm font-extrabold text-slate-800">
+                    {activePhotoKey === "main" ? "📸 Cover (Main View)" : 
+                     activePhotoKey === "top" ? "📸 Top (Cabin View)" : 
+                     activePhotoKey === "bottom" ? "📸 Bottom (Alloy Rims)" : 
+                     activePhotoKey === "left" ? "📸 Left Profile" : 
+                     "📸 Right Structure"}
+                  </span>
+                </div>
+
                 <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center space-x-1.5 border-b border-slate-100 pb-1.5">
                   <Sliders className="w-4 h-4 text-indigo-600" />
                   <span>Photo Correction Parameters</span>
@@ -353,14 +475,14 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                 <div className="block">
                   <div className="flex justify-between text-xs text-slate-700 font-bold mb-1.5">
                     <span>Auto-Brightness Tune</span>
-                    <span className="font-mono text-indigo-700">{enhancements.brightness}%</span>
+                    <span className="font-mono text-indigo-700">{localBrightness}%</span>
                   </div>
                   <input
                     type="range"
                     min="50"
                     max="150"
-                    value={enhancements.brightness}
-                    onChange={(e) => handleSliderChange("brightness", parseInt(e.target.value))}
+                    value={localBrightness}
+                    onChange={(e) => setLocalBrightness(parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-200 accent-indigo-500 rounded-lg cursor-pointer animate-none"
                   />
                   <span className="text-[10px] text-slate-500 block mt-1">Recommended: 110% to eliminate dark source glare.</span>
@@ -370,14 +492,14 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                 <div className="block">
                   <div className="flex justify-between text-xs text-slate-700 font-bold mb-1.5">
                     <span>Contrast Mapping</span>
-                    <span className="font-mono text-indigo-700">{enhancements.contrast}%</span>
+                    <span className="font-mono text-indigo-700">{localContrast}%</span>
                   </div>
                   <input
                     type="range"
                     min="50"
                     max="150"
-                    value={enhancements.contrast}
-                    onChange={(e) => handleSliderChange("contrast", parseInt(e.target.value))}
+                    value={localContrast}
+                    onChange={(e) => setLocalContrast(parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-200 accent-indigo-500 rounded-lg cursor-pointer"
                   />
                   <span className="text-[10px] text-slate-500 block mt-1">Optimizes shadow levels for metallic car coat highlights.</span>
@@ -387,14 +509,14 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                 <div className="block">
                   <div className="flex justify-between text-xs text-slate-700 font-bold mb-1.5">
                     <span>Smart Edge Sharpness</span>
-                    <span className="font-mono text-indigo-700">+{enhancements.sharpness}%</span>
+                    <span className="font-mono text-indigo-700">+{localSharpness}%</span>
                   </div>
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    value={enhancements.sharpness}
-                    onChange={(e) => handleSliderChange("sharpness", parseInt(e.target.value))}
+                    value={localSharpness}
+                    onChange={(e) => setLocalSharpness(parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-200 accent-indigo-500 rounded-lg cursor-pointer"
                   />
                   <span className="text-[10px] text-slate-500 block mt-1">Enhances logo clarity and body lines crisply.</span>
@@ -408,8 +530,8 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                   <label className="flex items-start space-x-3 p-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100/50 transition-colors">
                     <input
                       type="checkbox"
-                      checked={enhancements.denoise}
-                      onChange={(e) => handleSliderChange("denoise", e.target.checked)}
+                      checked={localDenoise}
+                      onChange={(e) => setLocalDenoise(e.target.checked)}
                       className="w-4 h-4 accent-indigo-500 mt-0.5 rounded"
                     />
                     <div>
@@ -422,8 +544,8 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                   <label className="flex items-start space-x-3 p-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100/50 transition-colors">
                     <input
                       type="checkbox"
-                      checked={enhancements.bgRemoved}
-                      onChange={(e) => handleSliderChange("bgRemoved", e.target.checked)}
+                      checked={localBgRemoved}
+                      onChange={(e) => setLocalBgRemoved(e.target.checked)}
                       className="w-4 h-4 accent-indigo-500 mt-0.5 rounded"
                     />
                     <div>
@@ -431,6 +553,20 @@ export default function EnhancementSection({ analysis, images, enhancements, set
                       <span className="text-[10px] text-slate-500 leading-tight block mt-0.5">Removes street clutter, centering the vehicle in a pristine grid room.</span>
                     </div>
                   </label>
+                </div>
+
+                {/* Save edits to this frame */}
+                <div className="pt-2 border-t border-slate-100 mt-4">
+                  <button
+                    type="button"
+                    onClick={savePhotoEnhancement}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 hover:cursor-pointer text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition shadow-md shadow-emerald-600/10 active:scale-95 duration-200"
+                  >
+                    <span>💾 Save & Enhance Selected Photo</span>
+                  </button>
+                  <p className="text-[9.5px] text-slate-400 mt-1 text-center italic leading-tight">
+                    This enhancements block is saved locally for compounding and soundtrack overlays.
+                  </p>
                 </div>
               </div>
             ) : (

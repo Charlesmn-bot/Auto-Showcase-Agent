@@ -26,12 +26,21 @@ export interface CarAnalysisResult {
   rejectionReason?: string;
 }
 
+export interface PhotoEditParams {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+  denoise: boolean;
+  bgRemoved: boolean;
+}
+
 export interface ActiveEnhancements {
   brightness: number;   // 100 is original, can adjust from 50 to 150
   contrast: number;     // 100 is original, can adjust from 50 to 150
   sharpness: number;    // 0 to 100, custom overlay filtering simulation
   denoise: boolean;     // Reduces simulated "grain" overlays
   bgRemoved: boolean;   // Removes clutters / adds elegant showroom gradient
+  photoEdits?: Record<string, PhotoEditParams>;
   // Video Enhancers
   videoStabilize: boolean;
   videoCleanAudio: boolean;
@@ -57,6 +66,9 @@ export interface SocialChannel {
   shares: number;
   comments: number;
   leads: number;
+  username?: string;
+  avatarUrl?: string;
+  confirmedAt?: string;
 }
 
 export interface PostQueueItem {

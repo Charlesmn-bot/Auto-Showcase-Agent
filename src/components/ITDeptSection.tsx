@@ -94,14 +94,14 @@ export default function ITDeptSection({
   // Directory Loop sweep trigger state
   const [isLooping, setIsLooping] = useState(false);
 
-  // Active Agent Daemon toggle: "shuffle" or "layer" or "multichannel" or "selflearning" or "soundtrack" or "soundtracklayout" or "businesscard" or "optimized"
-  const [activeAgentDaemon, setActiveAgentDaemon] = useState<"shuffle" | "layer" | "multichannel" | "selflearning" | "soundtrack" | "soundtracklayout" | "businesscard" | "optimized">("businesscard");
+  // Active Agent Daemon toggle: "shuffle" or "layer" or "multichannel" or "selflearning" or "soundtrack" or "soundtracklayout" or "businesscard" or "optimized" or "mediapath"
+  const [activeAgentDaemon, setActiveAgentDaemon] = useState<"shuffle" | "layer" | "multichannel" | "selflearning" | "soundtrack" | "soundtracklayout" | "businesscard" | "optimized" | "mediapath">("mediapath");
 
   // Agent internal simulations
   const [isAgentRunning, setIsAgentRunning] = useState(false);
   const [agentActiveStep, setAgentActiveStep] = useState(0);
   const [agentLogs, setAgentLogs] = useState<string[]>([
-    "// BusinessCardAgent: STANDBY • Registered inside local_database and watching 'Business Card Media'"
+    "// MediaPathAgent: STANDBY • Watching 'CarMedia/Intake' directory and listening to real-time sync updates"
   ]);
 
   // Dynamic state overrides for local filesystem directories and soundtracks
@@ -952,6 +952,122 @@ export default function ITDeptSection({
       addAuditLog("SUCCESS", "SYSTEM", "BusinessCardAgent loop completed. Created brand templates and dispatched 3 social media scheduled posts with track background.");
       addAuditLog("SUCCESS", "COMPOSITE", "Successfully rendered image business card layout and dynamic motion video. Registered files in local database storage.");
     }, 4200);
+  };
+
+  const runMediaPathAgent = () => {
+    if (isAgentRunning) return;
+    setIsAgentRunning(true);
+    setAgentActiveStep(1);
+    setAgentLogs([
+      `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] =============================================`,
+      `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] BEGIN MediaPathAgent execution cycle...`,
+      `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] INIT intake_folder = "CarMedia/Intake"`,
+      `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] INIT sorted_folder = "CarMedia/Sorted"`
+    ]);
+
+    setTimeout(() => {
+      setAgentActiveStep(2);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] LOOP WATCH: Watching intake_folder ("CarMedia/Intake") FOR new_uploads...`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] CONNECTED: Live metadata listeners active for real-time synchronization.`
+      ]);
+    }, 500);
+
+    setTimeout(() => {
+      setAgentActiveStep(3);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] NEW FILE INGESTED: Detected new uploads inside "CarMedia/Intake".`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] VALIDATING file types: image or video...`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] VALIDATION COMPLETE: Media file verified successfully.`
+      ]);
+    }, 1000);
+
+    setTimeout(() => {
+      setAgentActiveStep(4);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] ENHANCING quality: Applying high-fidelity resolution scales & dynamic contrast corrections...`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] DETECTING attributes: Scanning car_make, car_model, car_year with Gemini VisionAPI...`
+      ]);
+    }, 1500);
+
+    setTimeout(() => {
+      const make = analysis ? analysis.detectedMake : "Porsche";
+      const model = analysis ? analysis.detectedModel : "911 Carrera";
+      const year = analysis ? analysis.detectedYear : "2022";
+      const color = analysis ? analysis.detectedColor : "Guards Red";
+      const style = analysis ? analysis.detectedStyle : "Coupe";
+      const priceText = "$114,900";
+      
+      setAgentActiveStep(5);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] DETECTION RESULT: Vehicle matched! -> Make: ${make}, Model: ${model}, Year: ${year}`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] DETECTED SPECS - Color: ${color}, Style: ${style}, Price: ${priceText}`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] CREATING subfolder_path: "CarMedia/Sorted/${make}/${model}/${year}"`
+      ]);
+    }, 2000);
+
+    setTimeout(() => {
+      const make = analysis ? analysis.detectedMake : "Porsche";
+      const model = analysis ? analysis.detectedModel : "911 Carrera";
+      const year = analysis ? analysis.detectedYear : "2022";
+      
+      setAgentActiveStep(6);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] MOVE: Moving file to "CarMedia/Sorted/${make}/${model}/${year}/"`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] UPDATE display_UI with: Thumbnail, Specs, Year, Make, Model, and Price instantly!`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] UPDATING flyer & business card layouts: Redrawing overlays with active metadata.`
+      ]);
+
+      if (setFolderCounts) {
+        setFolderCounts(prev => ({
+          ...prev,
+          carMedia: prev.carMedia + 1,
+          published: prev.published + 1
+        }));
+      }
+    }, 2500);
+
+    setTimeout(() => {
+      setAgentActiveStep(7);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] LISTEN FOR metadata_changes: Active loop listening for real-time changes...`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] SYNC TRIGGER: Instant synchronization with posting queue active.`
+      ]);
+    }, 3000);
+
+    setTimeout(() => {
+      const make = analysis ? analysis.detectedMake : "Porsche";
+      const model = analysis ? analysis.detectedModel : "911 Carrera";
+      setAgentActiveStep(8);
+      setAgentLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] REAL-TIME METADATA SYNC COMPLETE: Refreshed all connected flyer layouts and business cards, synced instantly.`,
+        `[${new Date().toLocaleTimeString()}] [MEDIA_PATH] END MediaPathAgent execution SUCCESS. Standby state active.`
+      ]);
+      setIsAgentRunning(false);
+
+      if (setPostQueue) {
+        setPostQueue(prev => [
+          {
+            id: `mediapath-post-${Date.now()}`,
+            channelId: "instagram",
+            carName: `📂 [MediaPath Sorted] ${make} ${model}`,
+            caption: `Automatically sorted into folder 'CarMedia/Sorted/${make}/${model}' via MediaPathAgent. Dynamic specifications overlay synchronized in real-time. #PrecisionSorting`,
+            scheduleTime: "Real-Time Linked Sync",
+            status: "POSTED"
+          },
+          ...prev
+        ]);
+      }
+
+      addAuditLog("SUCCESS", "INTAKE", `MediaPathAgent completed file transaction. Verified, enhanced, detected, and sorted vehicle media into "CarMedia/Sorted". All responsive layouts refreshed.`);
+    }, 3500);
   };
 
   const runSoundtrackLayoutAgent = () => {
@@ -1874,7 +1990,7 @@ export default function ITDeptSection({
                 </div>
                 <div>
                   <h4 className="text-sm font-bold tracking-tight text-white uppercase font-display flex flex-wrap items-center gap-2">
-                    <span>{activeAgentDaemon === "businesscard" ? "BusinessCardAgent" : activeAgentDaemon === "soundtracklayout" ? "SoundtrackLayoutAgent" : activeAgentDaemon === "soundtrack" ? "QualityAgent" : activeAgentDaemon === "selflearning" ? "SelfLearningAgent" : activeAgentDaemon === "layer" ? "LayerAwareAgent" : activeAgentDaemon === "multichannel" ? "MultiChannelAgent" : activeAgentDaemon === "optimized" ? "OptimizedAgent" : "ShuffleCommunityAgent"} Daemon Engine</span>
+                    <span>{activeAgentDaemon === "mediapath" ? "MediaPathAgent" : activeAgentDaemon === "businesscard" ? "BusinessCardAgent" : activeAgentDaemon === "soundtracklayout" ? "SoundtrackLayoutAgent" : activeAgentDaemon === "soundtrack" ? "QualityAgent" : activeAgentDaemon === "selflearning" ? "SelfLearningAgent" : activeAgentDaemon === "layer" ? "LayerAwareAgent" : activeAgentDaemon === "multichannel" ? "MultiChannelAgent" : activeAgentDaemon === "optimized" ? "OptimizedAgent" : "ShuffleCommunityAgent"} Daemon Engine</span>
                     <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono tracking-wider border ${
                        isAgentRunning 
                         ? "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse" 
@@ -1884,7 +2000,9 @@ export default function ITDeptSection({
                     </span>
                   </h4>
                   <p className="text-[10.5px] text-slate-400 font-mono text-left">
-                    {activeAgentDaemon === "selflearning"
+                    {activeAgentDaemon === "mediapath"
+                      ? "Unified Media Intake & Auto-Sorting Agent: Watches intake folder, validates files (image/video), enhances quality, detects vehicle make/model/year with Gemini VisionAPI, and sorts assets dynamically to CarMedia/Sorted while syncing UI and layout details in real-time."
+                      : activeAgentDaemon === "selflearning"
                       ? "Smart self-learning engine observing user preferences, calibrating posting_times/captions/hashtags, and auto-publishing based on high confidence loops."
                       : activeAgentDaemon === "layer"
                       ? "Advanced layer-detecting image classifier, real-time antivirus, automatic photo-compositor & montage publisher."
@@ -1907,6 +2025,22 @@ export default function ITDeptSection({
               {/* Toggle Switch Selector + Run Trigger */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                 <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                  <button
+                    onClick={() => {
+                      if (isAgentRunning) return;
+                      setActiveAgentDaemon("mediapath");
+                      setAgentActiveStep(0);
+                      setAgentLogs(["// MediaPathAgent: STANDBY • Watching 'CarMedia/Intake' and ready to process and sort vehicles..."]);
+                    }}
+                    disabled={isAgentRunning}
+                    className={`px-2.5 py-1.5 text-[10px] font-mono font-bold rounded-md transition ${
+                      activeAgentDaemon === "mediapath"
+                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/15"
+                        : "text-slate-400 hover:text-slate-200 cursor-pointer"
+                    }`}
+                  >
+                    MediaPathAgent
+                  </button>
                   <button
                     onClick={() => {
                       if (isAgentRunning) return;
@@ -2039,6 +2173,7 @@ export default function ITDeptSection({
  
                 <button
                   onClick={
+                    activeAgentDaemon === "mediapath" ? runMediaPathAgent :
                     activeAgentDaemon === "businesscard" ? runBusinessCardAgent :
                     activeAgentDaemon === "soundtracklayout" ? runSoundtrackLayoutAgent :
                     activeAgentDaemon === "soundtrack" ? runSoundtrackAgent :
@@ -2053,6 +2188,7 @@ export default function ITDeptSection({
                 >
                   <Play className="w-3.5 h-3.5" />
                   <span>{isAgentRunning ? "Executing..." : `Run ${
+                    activeAgentDaemon === "mediapath" ? "MediaPath" :
                     activeAgentDaemon === "businesscard" ? "BusinessCard" :
                     activeAgentDaemon === "soundtracklayout" ? "SoundtrackLayout" :
                     activeAgentDaemon === "soundtrack" ? "QualityAgent" :
@@ -2071,7 +2207,68 @@ export default function ITDeptSection({
               
               {/* Left Column: Interactive Pseudocode Highlight */}
               <div className="lg:col-span-5 bg-slate-950 rounded-lg p-3.5 border border-slate-805 font-mono text-[10px] text-slate-300 leading-relaxed space-y-1 max-h-[300px] overflow-y-auto w-full">
-                {activeAgentDaemon === "businesscard" ? (
+                {activeAgentDaemon === "mediapath" ? (
+                  <>
+                    <div className="text-violet-400 font-bold">// UNIFIED MEDIA INTAKE & AUTO-SORTING AGENT</div>
+                    <div>
+                      <span className="text-pink-400 font-semibold">BEGIN</span> MediaPathAgent
+                    </div>
+
+                    <div className="pl-3 mt-1 text-slate-500">// Initialize directories</div>
+                    <div className="pl-3">
+                      <span className="text-indigo-400 font-bold">INIT</span> intake_folder = <span className="text-emerald-400">&quot;CarMedia/Intake&quot;</span>
+                    </div>
+                    <div className="pl-3">
+                      <span className="text-indigo-400 font-bold">INIT</span> sorted_folder = <span className="text-emerald-400">&quot;CarMedia/Sorted&quot;</span>
+                    </div>
+
+                    <div className="pl-3 mt-1.5 text-slate-300 font-semibold">LOOP:</div>
+                    <div className="pl-6">
+                      <span className="text-pink-400 font-bold">WATCH</span> intake_folder FOR <span className="text-amber-300">new_uploads</span>
+                    </div>
+                    <div className="pl-6">
+                      <span className="text-pink-400 font-bold">FOR each</span> new_file:
+                    </div>
+                    <div className="pl-9 text-slate-400">
+                      VALIDATE file_type (image OR video)
+                    </div>
+                    <div className="pl-9 text-slate-400">
+                      ENHANCE quality (brightness, contrast, sharpness scale)
+                    </div>
+                    <div className="pl-9 text-violet-400 font-semibold">
+                      DETECT car_make, car_model, car_year with Vision Model
+                    </div>
+                    <div className="pl-9">
+                      CREATE subfolder_path = sorted_folder/make/model/year
+                    </div>
+                    <div className="pl-9 text-emerald-400 font-semibold">
+                      MOVE file TO subfolder_path
+                    </div>
+
+                    <div className="pl-9 mt-1.5 font-bold text-sky-400">
+                      UPDATE display_UI WITH:
+                    </div>
+                    <div className="pl-12 text-slate-300">
+                      - Thumbnail Preview
+                    </div>
+                    <div className="pl-12 text-slate-300">
+                      - Car make/model/year specifications
+                      - Target Price ({analysis ? "$114,900" : "$0"})
+                    </div>
+
+                    <div className="pl-3 mt-2 text-slate-500">// Real-Time Metadata Synchronization</div>
+                    <div className="pl-3">
+                      <span className="text-pink-400 font-bold">LISTEN FOR</span> metadata_changes
+                    </div>
+                    <div className="pl-6 text-indigo-400 font-semibold">
+                      UPDATE display_UI + business_card_layouts instantly
+                    </div>
+
+                    <div className="mt-2">
+                      <span className="text-pink-400 font-semibold">END</span> MediaPathAgent
+                    </div>
+                  </>
+                ) : activeAgentDaemon === "businesscard" ? (
                   <>
                     <div className="text-emerald-400 font-bold">// BUSINESS CARD MEDIA SHARING AGENT</div>
                     <div>
@@ -2871,7 +3068,18 @@ export default function ITDeptSection({
 
                 {/* Dynamic Step indicators of the Selected Agent Loop */}
                 <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 pt-1 border-t border-slate-800/80">
-                  {(activeAgentDaemon === "businesscard"
+                  {(activeAgentDaemon === "mediapath"
+                    ? [
+                      { label: "1. Init Path", step: 1 },
+                      { label: "2. Watch Intake", step: 2 },
+                      { label: "3. Validate File", step: 3 },
+                      { label: "4. Enhance HG", step: 4 },
+                      { label: "5. Gemini Detect", step: 5 },
+                      { label: "6. Auto Sort Dir", step: 6 },
+                      { label: "7. Live Sync UI", step: 7 },
+                      { label: "8. Realtime Sync", step: 8 }
+                    ]
+                    : activeAgentDaemon === "businesscard"
                     ? [
                       { label: "1. Init DB", step: 1 },
                       { label: "2. Watch Card", step: 2 },
