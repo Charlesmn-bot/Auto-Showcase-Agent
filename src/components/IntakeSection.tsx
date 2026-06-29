@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Upload, HelpCircle, Shield, Radio, CheckCircle, AlertTriangle, Eye, Trash2, Layers, Video, Image, Play, Folder, FolderOpen, ExternalLink, Cloud, HardDrive, Search, Grid, List, Check, X, ChevronRight, Plus } from "lucide-react";
+import { Upload, HelpCircle, Shield, Radio, CheckCircle, AlertTriangle, Eye, Trash2, Layers, Video, Image, Play, Volume2, Folder, FolderOpen, ExternalLink, Cloud, HardDrive, Search, Grid, List, Check, X, ChevronRight, Plus, Zap, Cpu, ArrowRight, Clock, Sparkles } from "lucide-react";
 import { CarPreset, CarAnalysisResult } from "../types";
 import { CAR_PRESETS } from "../presets";
 
@@ -14,9 +14,10 @@ export interface UploadedMediaItem {
 interface IntakeSectionProps {
   onAnalyzeSuccess: (result: CarAnalysisResult, images: { main: string; top: string; bottom: string; left: string; right: string }, isUploaded: boolean) => void;
   addAuditLog: (level: "INFO" | "WARNING" | "SECURITY" | "SUCCESS", category: any, message: string) => void;
+  onStartFullAutopilot?: (result: CarAnalysisResult, images: { main: string; top: string; bottom: string; left: string; right: string }, includeVideo: boolean, presetId: string) => void;
 }
 
-export default function IntakeSection({ onAnalyzeSuccess, addAuditLog }: IntakeSectionProps) {
+export default function IntakeSection({ onAnalyzeSuccess, addAuditLog, onStartFullAutopilot }: IntakeSectionProps) {
   const [selectedPresetId, setSelectedPresetId] = useState<string>("porsche-911");
   const [uploadedMediaList, setUploadedMediaList] = useState<UploadedMediaItem[]>([]);
   const [layoutChoice, setLayoutChoice] = useState<"3" | "5">("5");
@@ -38,6 +39,191 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog }: IntakeS
   const [folderModalTab, setFolderModalTab] = useState<"workspace" | "gdrive">("workspace");
   const [gdriveSearch, setGdriveSearch] = useState("");
   const [activeWorkspaceSubfolder, setActiveWorkspaceSubfolder] = useState<string | null>(null);
+
+  // Autopilot photo selection automation states
+  const [isAutopilotOpen, setIsAutopilotOpen] = useState(false);
+  const [autopilotStep, setAutopilotStep] = useState<number>(0); // 0: ready, 1: scanning, 2: review recommendations, 3: finalizing intake
+  const [autopilotLog, setAutopilotLog] = useState<string[]>([]);
+  const [autopilotSelectedPreset, setAutopilotSelectedPreset] = useState<string>("toyota-supra");
+  const [isAutopilotRunning, setIsAutopilotRunning] = useState(false);
+
+  // Editable fields for classified car details
+  const [autopilotMake, setAutopilotMake] = useState("Toyota");
+  const [autopilotModel, setAutopilotModel] = useState("GR Supra");
+  const [autopilotYear, setAutopilotYear] = useState("2022");
+  const [autopilotColor, setAutopilotColor] = useState("Renaissance Red");
+  const [includeVideo, setIncludeVideo] = useState(true);
+
+  // Helper dictionary of recommended promotional videos per preset
+  const PRESET_VIDEOS: Record<string, { filename: string; duration: string; ratio: string; audio: string; desc: string }> = {
+    "toyota-supra": {
+      filename: "supra_drift_cinematic_1080p.mp4",
+      duration: "15s",
+      ratio: "Vertical (9:16)",
+      audio: "Enhanced twin-turbo inline-6 exhaust rumble",
+      desc: "Perfect high-octane clip for IG Reels and TikTok."
+    },
+    "mazda-rx7": {
+      filename: "rx7_spirit_tokyo_night_reel.mp4",
+      duration: "12s",
+      ratio: "Vertical (9:16)",
+      audio: "High-revving rotary exhaust soundtrack",
+      desc: "Midnight atmospheric aesthetic optimized for mobile engagement."
+    },
+    "honda-civic-typer": {
+      filename: "civic_type_r_track_lap_60fps.mov",
+      duration: "20s",
+      ratio: "Widescreen (16:9)",
+      audio: "VTEC crossover and wastegate flutters",
+      desc: "Ideal for YouTube Shorts and high-frame-rate detail previews."
+    },
+    "subaru-wrx-sti": {
+      filename: "subaru_gravel_launch_vertical.mp4",
+      duration: "15s",
+      ratio: "Vertical (9:16)",
+      audio: "Distinctive rumbling boxer-4 exhaust audio",
+      desc: "All-wheel-drive dirt launch showcase. High-impact visuals."
+    },
+    "nissan-gtr": {
+      filename: "gtr_nurburgring_flyby_raw.mp4",
+      duration: "18s",
+      ratio: "Cinematic (21:9)",
+      audio: "Twin-turbo VR38DETT high-speed flyby roar",
+      desc: "Hyper-car performance clip designed for viral attention span."
+    },
+    "porsche-911": {
+      filename: "porsche_mountain_pass_4k.mp4",
+      duration: "14s",
+      ratio: "Vertical (9:16)",
+      audio: "Naturally aspirated flat-6 engine scream",
+      desc: "Alpine hairpin road sweep with professional camera tracking."
+    },
+    "tesla-model-3": {
+      filename: "tesla_ludicrous_acceleration.mp4",
+      duration: "10s",
+      ratio: "Vertical (9:16)",
+      audio: "High-frequency dual-motor electric whine",
+      desc: "Instant torque dashboard response overlay. Tech-focused."
+    }
+  };
+
+  const selectAutopilotPreset = (presetId: string) => {
+    const preset = CAR_PRESETS.find(p => p.id === presetId);
+    if (!preset) return;
+    setAutopilotSelectedPreset(presetId);
+    setAutopilotMake(preset.makeModel.split(" ")[0]);
+    setAutopilotModel(preset.makeModel.split(" ").slice(1).join(" ") || preset.name);
+    setAutopilotYear(preset.defaultYear);
+    setAutopilotColor(preset.defaultColor);
+  };
+
+  const startAutopilotFlow = async () => {
+    setIsAutopilotRunning(true);
+    setAutopilotStep(1);
+    setAutopilotLog([]);
+
+    const log = (msg: string) => {
+      setAutopilotLog((prev) => [...prev, msg]);
+    };
+
+    log("📡 Querying linked root directory: CarMedia/Intake/...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    log(`📂 Querying Google Drive Cloud Path: ${googleDriveLink}...`);
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    log("✓ Direct socket connected to cloud bucket endpoint successfully.");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    log("📂 Found 5 vehicle directories matching Japanese brand template specifications:");
+    log(" - CarMedia/Intake/toyota_supra/ [5 photos, 1 promo_video]");
+    log(" - CarMedia/Intake/mazda_rx7/ [5 photos, 1 cinematic_clip]");
+    log(" - CarMedia/Intake/honda_civic_typer/ [5 photos, 1 teaser_video]");
+    log(" - CarMedia/Intake/subaru_wrx_sti/ [5 photos, 1 exhaust_clip]");
+    log(" - CarMedia/Intake/nissan_gtr/ [5 photos, 1 race_clip]");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    setAutopilotStep(2);
+    log("🔍 Comparing viewpoint completeness & photo quality/resolution markers...");
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    log("✓ toyota_supra/      -> 100% viewpoint match. Clarity score: 98/100 (RECOMMENDED)");
+    log("✓ mazda_rx7/         -> 100% viewpoint match. Clarity score: 96/100");
+    log("✓ honda_civic_typer/ -> 100% viewpoint match. Clarity score: 94/100");
+    log("✓ subaru_wrx_sti/    -> 100% viewpoint match. Clarity score: 93/100");
+    log("✓ nissan_gtr/        -> 100% viewpoint match. Clarity score: 95/100");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    log("⭐ Autopilot recommendation engine loaded: Toyota GR Supra (Renaissance Red) has premium lighting & composition.");
+
+    setAutopilotSelectedPreset("toyota-supra");
+    setAutopilotMake("Toyota");
+    setAutopilotModel("GR Supra");
+    setAutopilotYear("2022");
+    setAutopilotColor("Renaissance Red");
+    setIsAutopilotRunning(false);
+  };
+
+  const handleAutopilotConfirm = async () => {
+    const runEndToEnd = confirm(
+      "🤖 RUN END-TO-END AUTOMATION PIPELINE?\n\n" +
+      "Would you like SMedia Auto Post to automatically process this vehicle through all subsequent stages?\n\n" +
+      "This will automatically:\n" +
+      "1. Auto-apply AI Enhancers & Filters (Step 2)\n" +
+      "2. Render Showroom Collage layouts & backing music (Step 3)\n" +
+      "3. Generate Flyer Marketing Templates with custom copywriting (Step 4)\n" +
+      "4. Schedule and publish campaigns across all connected social media (Step 5)\n" +
+      "5. Transition directly to Live Conversion Analytics (Step 6)"
+    );
+
+    setIsAutopilotRunning(true);
+    setAutopilotStep(3);
+    const selectedPreset = CAR_PRESETS.find(p => p.id === autopilotSelectedPreset) || CAR_PRESETS[0];
+    
+    setAutopilotLog((prev) => [...prev, `🚀 Starting automated pipeline intake for choice: ${autopilotMake} ${autopilotModel}...`]);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    
+    // Set active preset
+    setSelectedPresetId(autopilotSelectedPreset);
+    setUploadedMediaList([]);
+    setError(null);
+    
+    setAutopilotLog((prev) => [...prev, `🛡️ Malware & Sector Verification: 100% Secure.`]);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    setAutopilotLog((prev) => [...prev, `👁️ AI Model Identification: Successfully classified as ${autopilotMake} ${autopilotModel}.`]);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    const result = {
+      detectedMake: autopilotMake,
+      detectedModel: autopilotModel,
+      detectedYear: autopilotYear,
+      detectedColor: autopilotColor,
+      detectedStyle: "Sports Coupe",
+      confidenceScore: 0.99,
+      clarityScore: 98,
+      marketingPitch: `Unleash high-octane performance and legendary motorsport heritage with this breathtaking ${autopilotColor} ${autopilotMake} ${autopilotModel} (${autopilotYear}). Verified via common folder dynamic intake system. Ready for instant digital marketing and premium showroom distribution.`,
+      cta: "DM for trade-in assessments & custom financing paths.",
+      hashtags: [autopilotMake.replace(/\s+/g, ""), `${autopilotMake}${autopilotModel}`.replace(/\s+/g, ""), "AutoShowcase", "ShowroomPrism", "CommonLink"],
+      safetyCheckPassed: true,
+      preferredLayout: layoutChoice
+    };
+
+    const imagesToPass = {
+      main: selectedPreset.mainUrl,
+      top: selectedPreset.topUrl,
+      bottom: selectedPreset.bottomUrl,
+      left: selectedPreset.leftUrl,
+      right: selectedPreset.rightUrl
+    };
+
+    addAuditLog("SUCCESS", "INTAKE", `Autopilot automatically selected, classified and verified ${autopilotMake} ${autopilotModel} assets.`);
+    
+    setIsAutopilotRunning(false);
+    setIsAutopilotOpen(false);
+    
+    if (runEndToEnd && onStartFullAutopilot) {
+      onStartFullAutopilot(result, imagesToPass, includeVideo, autopilotSelectedPreset);
+    } else {
+      // Trigger success callback to parent
+      onAnalyzeSuccess(result, imagesToPass, false);
+    }
+  };
 
   const [isLinkedToCommonFolder, setIsLinkedToCommonFolder] = useState<boolean>(() => {
     try {
@@ -480,7 +666,22 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog }: IntakeS
                 <span className="text-slate-500 font-normal">(Dynamic Auto-Scan Active)</span>
               </div>
             </div>
-            <div className="flex items-center space-x-3 shrink-0">
+            <div className="flex items-center space-x-2.5 shrink-0 flex-wrap gap-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAutopilotSelectedPreset("porsche-911");
+                  setAutopilotStep(0);
+                  setAutopilotLog([]);
+                  setIsAutopilotOpen(true);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-indigo-600/15 border border-indigo-500/20"
+                title="Automate viewing and selecting car photos from your linked folder"
+              >
+                <Zap className="w-3.5 h-3.5 text-indigo-200 fill-indigo-200 animate-pulse" />
+                <span>⚡ Autopilot Photo Selector</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => { setIsFolderModalOpen(true); setFolderModalTab("workspace"); }}
@@ -489,6 +690,7 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog }: IntakeS
                 <Folder className="w-3.5 h-3.5" />
                 <span>Virtual Hub Explorer</span>
               </button>
+
               <button
                 type="button"
                 onClick={handleUnlinkCommonFolder}
@@ -1332,6 +1534,393 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog }: IntakeS
                 className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-1.5 px-4 rounded-lg cursor-pointer transition-colors"
               >
                 Close Explorer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Autopilot Automation Modal */}
+      {isAutopilotOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all" id="autopilot-modal">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl flex flex-col overflow-hidden max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-indigo-900 to-slate-950 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-3 text-left">
+                <div className="bg-indigo-500/20 p-2 rounded-lg border border-indigo-500/30">
+                  <Cpu className="w-5 h-5 text-indigo-300 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-sm tracking-wide">Autopilot Media Hub Selector</h3>
+                  <p className="text-[10.5px] text-indigo-200/80">Automated photo ingestion &amp; verification for rapid showroom publishing.</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  if (isAutopilotRunning) {
+                    alert("Autopilot pipeline is currently processing. Please wait or let it complete!");
+                    return;
+                  }
+                  setIsAutopilotOpen(false);
+                }}
+                className="text-slate-300 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+              {autopilotStep === 0 && (
+                /* Initial State: Prompt to start */
+                <div className="space-y-4 text-center py-6">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto border border-indigo-100 shadow-xs">
+                    <Zap className="w-8 h-8 text-indigo-600 fill-indigo-100" />
+                  </div>
+                  <div className="max-w-md mx-auto space-y-2">
+                    <h4 className="font-bold text-sm text-slate-800">One-Click Auto-Discovery Pipeline</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Autopilot scans your linked directory (<code>CarMedia/Intake/</code>) and Google Drive files, extracts viewpoints, assesses image quality, and recommends the best vehicle for instant layout generation.
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-w-md mx-auto text-[11px] text-slate-600 font-mono text-left flex gap-2">
+                    <HardDrive className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Target Folder: <span className="text-indigo-650 font-bold">CarMedia/Intake/</span> (Local &amp; Drive Synced)</span>
+                  </div>
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={startAutopilotFlow}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-6 rounded-xl shadow-md shadow-indigo-600/10 hover:shadow-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Cpu className="w-4 h-4 animate-spin-slow" />
+                      <span>Scan &amp; Automate Photo Selection</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {autopilotStep === 1 && (
+                /* Step 1: Scanning / Running terminal simulation */
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                      Autopilot Scanning Linked Repositories...
+                    </span>
+                    <span className="text-[10px] font-mono text-indigo-600 font-bold">STABLE CONNECTION</span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-indigo-600 h-full rounded-full animate-pulse" style={{ width: "65%" }}></div>
+                  </div>
+
+                  {/* Terminal log output */}
+                  <div className="bg-slate-900 rounded-xl p-4 font-mono text-[10.5px] text-slate-300 leading-relaxed max-h-48 overflow-y-auto shadow-inner space-y-1 scrollbar border border-slate-800">
+                    {autopilotLog.map((logLine, lIdx) => (
+                      <div key={lIdx} className={logLine.startsWith("✓") ? "text-emerald-400" : logLine.startsWith("📡") || logLine.startsWith("📂") ? "text-indigo-300" : "text-slate-300"}>
+                        {logLine}
+                      </div>
+                    ))}
+                    <div className="text-indigo-400 animate-pulse mt-1">█ Processing metadata descriptors...</div>
+                  </div>
+                </div>
+              )}
+
+              {autopilotStep === 2 && (
+                /* Step 2: Quality Review & Selection Dashboard */
+                <div className="space-y-5">
+                  {/* Quality Notification Banner */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-150 rounded-xl flex items-start space-x-3 shadow-xs">
+                    <div className="p-1.5 bg-emerald-500/15 text-emerald-700 rounded-lg">
+                      <Sparkles className="w-5 h-5 shrink-0 text-emerald-600 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
+                        Scan Complete: Primary Japanese Brand Ingestion Pipeline Ready
+                      </h4>
+                      <p className="text-[11px] text-slate-650 leading-relaxed mt-0.5">
+                        Scanning discovered 5 target directories. We recommend the <span className="font-bold text-indigo-750 font-mono">Toyota GR Supra (Renaissance Red)</span> as the premium option due to high ambient lighting scores, perfect 5/5 composition coverage, and zero blur indices.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Selection Selector */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 block">Select Active Ingestion Directory Candidate:</label>
+                      <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full font-mono">Japanese Brands Prioritized</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1 scrollbar">
+                      {CAR_PRESETS.map((preset) => {
+                        const isSelected = autopilotSelectedPreset === preset.id;
+                        const isJapanese = ["toyota-supra", "mazda-rx7", "honda-civic-typer", "subaru-wrx-sti", "nissan-gtr"].includes(preset.id);
+                        return (
+                          <div
+                            key={preset.id}
+                            onClick={() => {
+                              if (isAutopilotRunning) return;
+                              selectAutopilotPreset(preset.id);
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                              isSelected
+                                ? "bg-indigo-55/90 border-indigo-550 ring-2 ring-indigo-550/20 shadow-sm"
+                                : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                            }`}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <img
+                                src={preset.mainUrl}
+                                alt={preset.name}
+                                className="w-12 h-12 object-cover rounded-lg border border-slate-100 shadow-xs shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-xs text-slate-800 block truncate leading-tight">{preset.name}</span>
+                                  {isJapanese && (
+                                    <span className="text-[8px] font-extrabold text-red-650 bg-red-50 border border-red-100 px-1 py-0.2 rounded shrink-0">
+                                      🇯🇵 JDM
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9.5px] text-slate-500 block font-mono mt-0.5">/Intake/{preset.id.replace(/-/g, "_")}/</span>
+                                <div className="mt-1 flex items-center justify-between">
+                                  <span className="text-[9px] font-bold text-indigo-650 bg-indigo-100/50 px-1.5 py-0.2 rounded">5 photos + 1 clip</span>
+                                  {preset.id === "toyota-supra" && (
+                                    <span className="text-[8.5px] font-extrabold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded flex items-center gap-0.5 shrink-0">
+                                      <Sparkles className="w-2.5 h-2.5 fill-emerald-600 text-emerald-600 animate-spin-slow" />
+                                      BEST RECOMMENDATION
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* AI Make and Model Classifier & Verification */}
+                  <div className="bg-slate-900 text-slate-100 rounded-xl p-4 border border-slate-800 shadow-inner space-y-3">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                      <div className="flex items-center space-x-2">
+                        <Cpu className="w-4 h-4 text-indigo-400 animate-pulse" />
+                        <span className="text-xs font-bold text-slate-200 tracking-wide uppercase font-display">Neural Classification &amp; Attribute Discovery</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/50">
+                        ✓ 99.4% Match Confidence
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">Classified Make</label>
+                        <input
+                          type="text"
+                          value={autopilotMake}
+                          onChange={(e) => setAutopilotMake(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-medium"
+                          placeholder="e.g. Toyota"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">Classified Model</label>
+                        <input
+                          type="text"
+                          value={autopilotModel}
+                          onChange={(e) => setAutopilotModel(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-medium"
+                          placeholder="e.g. GR Supra"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">Model Year</label>
+                        <input
+                          type="text"
+                          value={autopilotYear}
+                          onChange={(e) => setAutopilotYear(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-medium"
+                          placeholder="e.g. 2022"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">Body Color</label>
+                        <input
+                          type="text"
+                          value={autopilotColor}
+                          onChange={(e) => setAutopilotColor(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-medium"
+                          placeholder="e.g. Renaissance Red"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-normal italic font-mono pt-0.5">
+                      💡 Attributes automatically extracted from directory metadata &amp; visual feature patterns. You can edit any value above to refine classification output.
+                    </p>
+                  </div>
+
+                  {/* Selected Preset Photo Viewer */}
+                  {(() => {
+                    const activePreset = CAR_PRESETS.find(p => p.id === autopilotSelectedPreset);
+                    if (!activePreset) return null;
+                    return (
+                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10.5px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5 text-indigo-600" />
+                            Recommended Quality Photos (5 Views Detected)
+                          </span>
+                          <span className="text-[10px] text-indigo-650 font-bold font-mono bg-indigo-50 px-2 py-0.5 rounded">
+                            Resolution Checks Verified (100% Clarity)
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-5 gap-2">
+                          {[
+                            { name: "main_hero.jpg", url: activePreset.mainUrl, label: "Main / Hero", detail: "Excellent Angle" },
+                            { name: "top_spec.jpg", url: activePreset.topUrl, label: "Top / Engine", detail: "Sharp Detail" },
+                            { name: "bottom_spec.jpg", url: activePreset.bottomUrl, label: "Under / Bottom", detail: "Clean Spec" },
+                            { name: "left_profile.jpg", url: activePreset.leftUrl, label: "Left Profile", detail: "Perfect Side" },
+                            { name: "right_profile.jpg", url: activePreset.rightUrl, label: "Right Profile", detail: "High contrast" },
+                          ].map((item, iIdx) => (
+                            <div key={iIdx} className="bg-white border border-slate-250 rounded-lg overflow-hidden relative group aspect-square shadow-2xs">
+                              <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                              <div className="absolute top-0.5 left-0.5">
+                                <span className="text-[7px] font-bold bg-emerald-500 text-white px-1 py-0.2 rounded leading-none">
+                                  ✓ OK
+                                </span>
+                              </div>
+                              <div className="absolute bottom-0 inset-x-0 bg-slate-950/75 p-1 text-center">
+                                <span className="text-[8px] text-white font-bold block leading-none truncate uppercase">{item.label}</span>
+                                <span className="text-[6.5px] text-slate-300 block font-mono leading-none mt-0.5 truncate">{item.detail}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Quality Video Recommendation Section */}
+                  {(() => {
+                    const videoDetails = PRESET_VIDEOS[autopilotSelectedPreset] || PRESET_VIDEOS["toyota-supra"];
+                    return (
+                      <div className="bg-indigo-950/20 border border-indigo-150/70 p-4 rounded-xl space-y-3 text-left">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10.5px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <Video className="w-4 h-4 text-indigo-700 animate-pulse" />
+                            AI Video recommendation (1 High-Quality File Found)
+                          </span>
+                          <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={includeVideo}
+                              onChange={(e) => setIncludeVideo(e.target.checked)}
+                              className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-[10.5px] font-bold text-indigo-950">Include in Posting Package</span>
+                          </label>
+                        </div>
+
+                        <div className={`flex flex-col sm:flex-row gap-3 p-3 bg-white border rounded-lg transition-all ${includeVideo ? 'border-indigo-300 ring-1 ring-indigo-350/20' : 'border-slate-200 opacity-60'}`}>
+                          <div className="w-full sm:w-32 aspect-video sm:aspect-square bg-slate-900 rounded-md relative flex items-center justify-center shrink-0 overflow-hidden group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/60 to-slate-900/80 group-hover:scale-105 transition-transform" />
+                            
+                            {/* Simulated waveform visualization for audio track */}
+                            <div className="absolute bottom-1.5 left-2 right-2 flex items-end gap-0.5 h-3 opacity-80">
+                              <span className="w-1 bg-indigo-400 h-1 rounded animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                              <span className="w-1 bg-indigo-400 h-2 rounded animate-bounce" style={{ animationDelay: '0.3s' }}></span>
+                              <span className="w-1 bg-indigo-400 h-1 rounded animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                              <span className="w-1 bg-indigo-400 h-3 rounded animate-bounce" style={{ animationDelay: '0.5s' }}></span>
+                              <span className="w-1 bg-indigo-400 h-2 rounded animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                              <span className="w-1 bg-indigo-400 h-1.5 rounded animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                            </div>
+
+                            <button type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full shadow-md hover:scale-110 transition-transform relative z-10 cursor-pointer">
+                              <Play className="w-4 h-4 fill-white text-white translate-x-0.5" />
+                            </button>
+                            <span className="absolute top-1 left-1 bg-indigo-950/80 text-white font-mono text-[7px] font-bold px-1 py-0.2 rounded uppercase">
+                              {videoDetails.ratio.split(" ")[0]}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5 text-slate-800">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-indigo-950 block truncate">{videoDetails.filename}</span>
+                              <span className="text-[10px] text-indigo-700 font-bold font-mono block mt-0.5">{videoDetails.ratio} • {videoDetails.duration}</span>
+                              <p className="text-[10.5px] text-slate-600 mt-1.5 leading-relaxed font-sans">{videoDetails.desc}</p>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center space-x-2 text-[9.5px] text-indigo-850 font-mono">
+                              <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              <span className="truncate">Audio: <span className="font-bold">{videoDetails.audio}</span></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="pt-2 flex items-center justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setAutopilotStep(0)}
+                      className="border border-slate-250 hover:bg-slate-50 text-slate-600 font-bold text-xs py-2 px-4 rounded-xl transition-all cursor-pointer"
+                    >
+                      Re-scan Directory
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAutopilotConfirm}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-6 rounded-xl shadow-md shadow-indigo-600/15 hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>🚀 Apply Classification &amp; Recommendations</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {autopilotStep === 3 && (
+                /* Step 3: Ingestion Pipeline Processing */
+                <div className="space-y-4 py-6 text-center max-w-md mx-auto">
+                  <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center mx-auto animate-spin">
+                    <Cpu className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-800">Processing Autopilot Output Pipeline...</h4>
+                    <p className="text-xs text-slate-500">Injecting high-resolution photographs into standard multi-grid canvas templates.</p>
+                  </div>
+
+                  <div className="bg-slate-900 text-left rounded-xl p-4 font-mono text-[10px] text-slate-300 leading-relaxed space-y-1 shadow-inner border border-slate-800">
+                    {autopilotLog.map((logLine, lIdx) => (
+                      <div key={lIdx} className={logLine.startsWith("✓") || logLine.includes("Secure") ? "text-emerald-400" : "text-slate-300"}>
+                        {logLine}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
+              <span>Secure auto-discovery protocol active</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isAutopilotRunning) return;
+                  setIsAutopilotOpen(false);
+                }}
+                disabled={isAutopilotRunning}
+                className={`bg-slate-800 text-white font-bold text-xs py-1.5 px-4 rounded-lg transition-colors ${
+                  isAutopilotRunning ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-900 cursor-pointer"
+                }`}
+              >
+                Close Autopilot
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText, LogOut, Home, UploadCloud, Bell, Settings } from "lucide-react";
+import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText, LogOut, Home, UploadCloud, Bell, Settings, Cpu, Check } from "lucide-react";
 import { CarAnalysisResult, ActiveEnhancements, AuditLogEntry, SocialChannel, PostQueueItem, SoundtrackItem } from "./types";
 import { CAR_PRESETS } from "./presets";
 import IntakeSection from "./components/IntakeSection";
@@ -178,6 +178,195 @@ export default function App() {
 
     // Automatically navigate to Step 2
     setActiveTab(2);
+  };
+
+  // Autonomous Pipeline States
+  const [isFullAutopilotRunning, setIsFullAutopilotRunning] = useState(false);
+  const [autopilotCurrentStage, setAutopilotCurrentStage] = useState(1);
+  const [autopilotProgress, setAutopilotProgress] = useState(0);
+  const [autopilotLogs, setAutopilotLogs] = useState<string[]>([]);
+
+  const handleStartFullAutopilot = async (
+    result: CarAnalysisResult,
+    images: typeof activeImages,
+    includeVideo: boolean,
+    presetId: string
+  ) => {
+    setIsFullAutopilotRunning(true);
+    setAutopilotCurrentStage(1);
+    setAutopilotProgress(10);
+    setAutopilotLogs([
+      "🤖 SMedia End-to-End Autonomous Pipeline Initiated.",
+      "📁 Secure Ingestion Connection Established.",
+      `✓ Successfully linked & synced directory for: ${result.detectedMake} ${result.detectedModel}`,
+    ]);
+
+    // Set initial car state
+    setAnalysisResult(result);
+    setActiveImages(images);
+    setIsUploaded(true);
+    setActiveTab(1); // Set tab to Intake first
+
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // STAGE 1: INTAKE & CLASSIFICATION (COMPLETE)
+    addAuditLog("SUCCESS", "INTAKE", `Autonomous intake initiated for ${result.detectedMake} ${result.detectedModel}.`);
+    await delay(1200);
+
+    // STAGE 2: AI ENHANCEMENTS & FILTER RESOLUTION
+    setAutopilotCurrentStage(2);
+    setAutopilotProgress(30);
+    setActiveTab(2); // Automatically switch tabs behind!
+    setAutopilotLogs(prev => [
+      ...prev,
+      "⚡ Entering Stage 2: AI Enhancements & Image Processing...",
+      "🎨 Optimizing image exposure settings... (Brightness set to +15%, Contrast to +8%)",
+      "🔬 Executing deep neural resolution upscale (+40% sharpness parameters)",
+      "✓ Auto-denoise algorithm completed successfully on all 5 viewpoints.",
+      includeVideo ? "🎞️ Stabilizing cinematic mp4 reel & cleaning audio track..." : "🎞️ Skipped video processing as requested.",
+      "✓ Background replacement completed: applied premium showroom matte styling."
+    ]);
+    addAuditLog("SUCCESS", "ENHANCE", `AI Enhancer applied professional exposure & background replacement to all 5 viewpoints.`);
+    
+    // Update state
+    setEnhancements({
+      brightness: 115,
+      contrast: 108,
+      sharpness: 40,
+      denoise: true,
+      bgRemoved: true,
+      videoStabilize: true,
+      videoCleanAudio: true,
+      videoWatermark: true,
+      videoBrightness: 115,
+      videoContrast: 108,
+      photoEdits: {
+        main: { brightness: 115, contrast: 108, sharpness: 40, denoise: true, bgRemoved: true },
+        top: { brightness: 115, contrast: 108, sharpness: 40, denoise: true, bgRemoved: true },
+        bottom: { brightness: 110, contrast: 110, sharpness: 50, denoise: true, bgRemoved: true },
+        left: { brightness: 115, contrast: 108, sharpness: 40, denoise: true, bgRemoved: true },
+        right: { brightness: 115, contrast: 108, sharpness: 40, denoise: true, bgRemoved: true },
+      }
+    });
+    await delay(1800);
+
+    // STAGE 3: COMPOSING SHOWROOM COLLAGES & AUDIO backing
+    setAutopilotCurrentStage(3);
+    setAutopilotProgress(55);
+    setActiveTab(3); // Switch tab
+    setAutopilotLogs(prev => [
+      ...prev,
+      "⚡ Entering Stage 3: Collage Canvas Compilation...",
+      "📐 Auto-aligning 5 distinct views into standardized multi-view collage...",
+      "🎵 Analyzing vehicle acoustics and matching optimal backing soundtrack...",
+      `✓ Dynamic match detected: Connected soundtrack 'Acoustic Sunsets' (Genre: Warm Acoustic Guitar).`,
+      "✓ Compiled layout rendered & written to: '/ShowroomLayouts/collage_layout_auto.png'",
+      includeVideo ? `✓ Rendered stabilized video reel: '/ShowroomVideos/${presetId}_showcase_clip.mp4'` : ""
+    ].filter(Boolean));
+    addAuditLog("SUCCESS", "COMPOSITE", `Automatically compiled 5-view collage and matched premium backing soundtrack.`);
+    setFolderCounts(prev => ({
+      ...prev,
+      showroomLayouts: prev.showroomLayouts + 1,
+      showroomVideos: includeVideo ? prev.showroomVideos + 1 : prev.showroomVideos
+    }));
+    await delay(1800);
+
+    // STAGE 4: FLYER TEMPLATE GENERATION
+    setAutopilotCurrentStage(4);
+    setAutopilotProgress(75);
+    setActiveTab(4); // Switch tab
+    setAutopilotLogs(prev => [
+      ...prev,
+      "⚡ Entering Stage 4: Flyer Layout Generation...",
+      "✍️ Initiating neural copywriter to draft descriptive product marketing pitches...",
+      "✓ Generated optimized CTA: 'DM for trade-in assessments & custom financing paths.'",
+      "✓ Attached active hashtag metadata matrix mapping.",
+      "✓ Formatted elegant responsive HTML brochure layout.",
+      "✓ Registered digital pricing card placeholders."
+    ]);
+    addAuditLog("SUCCESS", "COMPOSITE", "Autonomous Agent rendered professional showroom promotional flyer template.");
+    await delay(1800);
+
+    // STAGE 5: SOCIAL SCHEDULER & DISPATCH CAMPAIGN
+    setAutopilotCurrentStage(5);
+    setAutopilotProgress(95);
+    setActiveTab(5); // Switch tab
+    setAutopilotLogs(prev => [
+      ...prev,
+      "⚡ Entering Stage 5: Multi-Channel Social Scheduling & Dispatch...",
+      "🔗 Connecting to authorized gateways: Instagram, Facebook...",
+      "📝 Attaching marketing pitches & selected tag configurations...",
+      "✓ Dual campaigns scheduled securely: Photo campaign (09:00 AM) & video reel (12:00 PM).",
+      "🚀 Bypassed safety hold duration: Published instant active posting successfully!",
+      "📈 Simulated initial live conversion parameters registered: Tracking analytics connected."
+    ]);
+
+    // Dispatch/Enqueue some realistic posts in postQueue
+    const fullPostCaption = `${result.marketingPitch}\n\n${result.cta}\n\n${result.hashtags.map((h) => `#${h}`).join(" ")}`;
+    
+    const samplePublished: PostQueueItem[] = socialChannels
+      .filter(chan => chan.connected)
+      .flatMap(chan => [
+        {
+          id: `queue-${Date.now()}-autopub-photo-${chan.id}`,
+          channelId: chan.id,
+          carName: `📸 Photo: ${result.detectedMake} ${result.detectedModel}`,
+          caption: fullPostCaption,
+          scheduleTime: "Posted Now",
+          status: "POSTED" as const
+        },
+        ...(includeVideo ? [{
+          id: `queue-${Date.now()}-autopub-video-${chan.id}`,
+          channelId: chan.id,
+          carName: `🎥 Video Showcase Reels`,
+          caption: `🔥 High Impact Video Reels 🔥\n${fullPostCaption}`,
+          scheduleTime: "Posted Now",
+          status: "POSTED" as const
+        }] : [])
+      ]);
+
+    // Update social metrics to show dynamic real-time traffic
+    setSocialChannels(prev =>
+      prev.map(ch => {
+        if (ch.connected) {
+          return {
+            ...ch,
+            likes: ch.likes + Math.floor(Math.random() * 50) + 40,
+            comments: ch.comments + Math.floor(Math.random() * 15) + 6,
+            shares: ch.shares + Math.floor(Math.random() * 10) + 3,
+            leads: ch.leads + (Math.random() > 0.3 ? 3 : 1)
+          };
+        }
+        return ch;
+      })
+    );
+
+    setPostQueue(prev => [...prev, ...samplePublished]);
+    addAuditLog("SUCCESS", "SOCIAL", `Autopilot enqueued and dispatched active campaigns successfully across connected profiles.`);
+    
+    // Decrement Showroom layouts/videos since they are now published as per pipeline rules
+    setFolderCounts(prev => ({
+      ...prev,
+      showroomLayouts: Math.max(0, prev.showroomLayouts - 1),
+      showroomVideos: includeVideo ? Math.max(0, prev.showroomVideos - 1) : prev.showroomVideos,
+      published: prev.published + (includeVideo ? 2 : 1)
+    }));
+
+    await delay(1850);
+
+    // STAGE 6: FINISH & TRANSITION TO CONVERSION ANALYTICS
+    setAutopilotProgress(100);
+    setAutopilotLogs(prev => [
+      ...prev,
+      "🎉 PIPELINE EXECUTION COMPLETED SUCCESSFULLY!",
+      "✓ 100% of pipeline assets processed, rendered, scheduled, and dispatched.",
+      "✓ Auto-transitioning to Step 6: Conversion Analytics... Enjoy the insights!"
+    ]);
+    await delay(1200);
+
+    // Switch to step 6 (Analytics) and end
+    setActiveTab(6);
+    setIsFullAutopilotRunning(false);
   };
 
   // Steps configuration list
@@ -503,6 +692,7 @@ export default function App() {
                   <IntakeSection
                     onAnalyzeSuccess={handleIntakeSuccess}
                     addAuditLog={addAuditLog}
+                    onStartFullAutopilot={handleStartFullAutopilot}
                   />
                 )}
 
@@ -893,6 +1083,113 @@ export default function App() {
                   <span>LOCK SECURE SESSION</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. IMMERSIVE END-TO-END AUTONOMOUS PIPELINE MODAL OVERLAY */}
+      {isFullAutopilotRunning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#0c091f] border border-slate-800/80 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-indigo-950/70 to-slate-900/40 border-b border-slate-800/75 flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-left">
+                <div className="w-10 h-10 bg-indigo-600/20 rounded-xl border border-indigo-500/30 flex items-center justify-center shrink-0">
+                  <Cpu className="w-5 h-5 text-indigo-400 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">SMedia Autonomous Agent Console</h3>
+                  <p className="text-[10px] text-indigo-400 font-mono">End-to-End Execution Pipeline</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                <span>ACTIVE AUTOPILOT RUN</span>
+              </div>
+            </div>
+
+            {/* Stages overview tabs inside terminal console */}
+            <div className="px-6 py-4 bg-[#070514] border-b border-slate-800/50 grid grid-cols-5 gap-2 text-center text-[10px] font-semibold">
+              {[
+                { label: "Intake", stepNum: 1 },
+                { label: "Enhance", stepNum: 2 },
+                { label: "Collage", stepNum: 3 },
+                { label: "Flyer", stepNum: 4 },
+                { label: "Social", stepNum: 5 },
+              ].map((stage) => {
+                const isDone = autopilotCurrentStage > stage.stepNum || autopilotProgress === 100;
+                const isCurrent = autopilotCurrentStage === stage.stepNum && autopilotProgress !== 100;
+                return (
+                  <div
+                    key={stage.stepNum}
+                    className={`p-2 rounded-xl border transition-all ${
+                      isDone
+                        ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-400"
+                        : isCurrent
+                        ? "bg-indigo-950/30 border-indigo-500/80 text-white shadow-md shadow-indigo-500/10 scale-102 font-bold"
+                        : "bg-slate-950/40 border-slate-900/60 text-slate-500"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center mb-1">
+                      {isDone ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : isCurrent ? (
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                      ) : (
+                        <span className="font-mono text-[9px]">{stage.stepNum}</span>
+                      )}
+                    </div>
+                    <span className="block font-medium truncate">{stage.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="px-6 pt-5">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1.5">
+                <span>Autonomous Completion Rate</span>
+                <span className="font-bold text-indigo-400">{autopilotProgress}%</span>
+              </div>
+              <div className="w-full bg-[#070514] rounded-full h-2.5 overflow-hidden border border-slate-800">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${autopilotProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Live Terminal Output Logs */}
+            <div className="p-6 flex-1 flex flex-col min-h-0 text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">Neural Pipeline Socket Log Feed</span>
+                <span className="text-[9px] font-mono text-slate-500">v1.4.2-autonomous</span>
+              </div>
+              <div className="flex-1 bg-slate-950 border border-slate-900 rounded-2xl p-4 font-mono text-[10.5px] text-slate-300 overflow-y-auto space-y-1.5 shadow-inner leading-relaxed scrollbar">
+                {autopilotLogs.map((log, index) => {
+                  let textClass = "text-slate-300";
+                  if (log.startsWith("🎉") || log.startsWith("✓")) {
+                    textClass = "text-emerald-400 font-bold";
+                  } else if (log.startsWith("⚡") || log.startsWith("🤖")) {
+                    textClass = "text-indigo-400 font-bold";
+                  } else if (log.includes("Entering")) {
+                    textClass = "text-indigo-300 font-bold mt-2 border-t border-slate-900 pt-2 block";
+                  }
+                  return (
+                    <div key={index} className={textClass}>
+                      {log}
+                    </div>
+                  );
+                })}
+                <div className="animate-pulse text-indigo-500 text-[10px]">▋ PROCESSOR WAITING ON PIPELINE DISPATCHER...</div>
+              </div>
+            </div>
+
+            {/* Info Footer */}
+            <div className="bg-slate-950 p-4 border-t border-slate-900 flex items-center justify-between text-[10.5px] text-slate-500 shrink-0">
+              <span className="font-sans">💡 Full pipeline is executing automatically. Review results shortly.</span>
+              <span className="font-mono text-indigo-500 font-semibold animate-pulse">Processing...</span>
             </div>
           </div>
         </div>
