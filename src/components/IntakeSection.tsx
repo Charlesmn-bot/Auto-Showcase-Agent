@@ -234,6 +234,15 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog, onStartFu
     }
   });
 
+  const [linkedFolderName, setLinkedFolderName] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem("linkedFolderName");
+      return stored || "CarMedia/Intake";
+    } catch {
+      return "CarMedia/Intake";
+    }
+  });
+
   const [googleDriveLink, setGoogleDriveLink] = useState<string>(() => {
     try {
       const stored = localStorage.getItem("googleDriveLink");
@@ -257,8 +266,10 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog, onStartFu
   const handleLinkCommonFolder = () => {
     try {
       localStorage.setItem("isLinkedToCommonFolder", "true");
+      localStorage.setItem("linkedFolderName", "CarMedia/Intake");
     } catch (e) {}
     setIsLinkedToCommonFolder(true);
+    setLinkedFolderName("CarMedia/Intake");
     setError(null);
     addAuditLog("SUCCESS", "INTAKE", "Linked application to 'CarMedia/Intake' common folder of photos and videos successfully.");
   };
@@ -595,7 +606,7 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog, onStartFu
                     title="Click to view virtual folder"
                   >
                     <Folder className="w-3 h-3 text-amber-750" />
-                    CarMedia/Intake
+                    {linkedFolderName}
                   </button>
                   ). Run in offline-ready local linked mode to resolve analysis limitations.
                 </p>
@@ -626,7 +637,7 @@ export default function IntakeSection({ onAnalyzeSuccess, addAuditLog, onStartFu
                       title="Click to open your configured Google Drive folder in a new tab"
                     >
                       <FolderOpen className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>CarMedia/Intake</span>
+                      <span>{linkedFolderName}</span>
                       <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
                     </a>
                     <button

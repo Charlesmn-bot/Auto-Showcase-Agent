@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText, LogOut, Home, UploadCloud, Bell, Settings, Cpu, Check } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Shield, Sparkles, Columns, Lock, Share2, BarChart3, ChevronRight, Activity, RotateCcw, Terminal, FileText, LogOut, Home, UploadCloud, Bell, Settings, Cpu, Check, X, XCircle } from "lucide-react";
 import { CarAnalysisResult, ActiveEnhancements, AuditLogEntry, SocialChannel, PostQueueItem, SoundtrackItem } from "./types";
 import { CAR_PRESETS } from "./presets";
 import IntakeSection from "./components/IntakeSection";
@@ -185,6 +185,13 @@ export default function App() {
   const [autopilotCurrentStage, setAutopilotCurrentStage] = useState(1);
   const [autopilotProgress, setAutopilotProgress] = useState(0);
   const [autopilotLogs, setAutopilotLogs] = useState<string[]>([]);
+  const autopilotAbortedRef = useRef(false);
+
+  const handleCancelAutopilot = () => {
+    autopilotAbortedRef.current = true;
+    setIsFullAutopilotRunning(false);
+    addAuditLog("WARNING", "SYSTEM", `SMedia End-to-End Autonomous Pipeline run manually canceled by user.`);
+  };
 
   const handleStartFullAutopilot = async (
     result: CarAnalysisResult,
@@ -192,6 +199,7 @@ export default function App() {
     includeVideo: boolean,
     presetId: string
   ) => {
+    autopilotAbortedRef.current = false;
     setIsFullAutopilotRunning(true);
     setAutopilotCurrentStage(1);
     setAutopilotProgress(10);
@@ -212,6 +220,7 @@ export default function App() {
     // STAGE 1: INTAKE & CLASSIFICATION (COMPLETE)
     addAuditLog("SUCCESS", "INTAKE", `Autonomous intake initiated for ${result.detectedMake} ${result.detectedModel}.`);
     await delay(1200);
+    if (autopilotAbortedRef.current) return;
 
     // STAGE 2: AI ENHANCEMENTS & FILTER RESOLUTION
     setAutopilotCurrentStage(2);
@@ -249,6 +258,7 @@ export default function App() {
       }
     });
     await delay(1800);
+    if (autopilotAbortedRef.current) return;
 
     // STAGE 3: COMPOSING SHOWROOM COLLAGES & AUDIO backing
     setAutopilotCurrentStage(3);
@@ -270,6 +280,7 @@ export default function App() {
       showroomVideos: includeVideo ? prev.showroomVideos + 1 : prev.showroomVideos
     }));
     await delay(1800);
+    if (autopilotAbortedRef.current) return;
 
     // STAGE 4: FLYER TEMPLATE GENERATION
     setAutopilotCurrentStage(4);
@@ -286,6 +297,7 @@ export default function App() {
     ]);
     addAuditLog("SUCCESS", "COMPOSITE", "Autonomous Agent rendered professional showroom promotional flyer template.");
     await delay(1800);
+    if (autopilotAbortedRef.current) return;
 
     // STAGE 5: SOCIAL SCHEDULER & DISPATCH CAMPAIGN
     setAutopilotCurrentStage(5);
@@ -353,6 +365,7 @@ export default function App() {
     }));
 
     await delay(1850);
+    if (autopilotAbortedRef.current) return;
 
     // STAGE 6: FINISH & TRANSITION TO CONVERSION ANALYTICS
     setAutopilotProgress(100);
@@ -363,6 +376,7 @@ export default function App() {
       "✓ Auto-transitioning to Step 6: Conversion Analytics... Enjoy the insights!"
     ]);
     await delay(1200);
+    if (autopilotAbortedRef.current) return;
 
     // Switch to step 6 (Analytics) and end
     setActiveTab(6);
@@ -416,7 +430,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans transition-colors duration-200 flex flex-col md:flex-row animate-fade-in relative pb-16 md:pb-0">
+    <div className="min-h-screen bg-[#D8F8FF] text-slate-800 font-sans transition-colors duration-200 flex flex-col md:flex-row animate-fade-in relative pb-16 md:pb-0">
       
       {/* 1. SIDE NAVIGATION PANEL FOR DESKTOP/TABLET */}
       <aside className="hidden md:flex flex-col w-64 bg-[#0a071a] text-slate-300 border-r border-[#1a1535] shrink-0 sticky top-0 h-screen overflow-y-auto">
@@ -1123,7 +1137,7 @@ export default function App() {
                 return (
                   <div
                     key={stage.stepNum}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`p-2 rounded-xl border transition-all flex flex-col items-center justify-between min-h-[72px] ${
                       isDone
                         ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-400"
                         : isCurrent
@@ -1141,6 +1155,19 @@ export default function App() {
                       )}
                     </div>
                     <span className="block font-medium truncate">{stage.label}</span>
+                    {isCurrent && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelAutopilot();
+                        }}
+                        className="mt-1.5 px-1.5 py-0.5 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-300 rounded text-[8px] font-extrabold tracking-wider uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                        title="Cancel process at this stage"
+                      >
+                        <X className="w-2 h-2 text-rose-400" />
+                        <span>Cancel</span>
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -1189,7 +1216,17 @@ export default function App() {
             {/* Info Footer */}
             <div className="bg-slate-950 p-4 border-t border-slate-900 flex items-center justify-between text-[10.5px] text-slate-500 shrink-0">
               <span className="font-sans">💡 Full pipeline is executing automatically. Review results shortly.</span>
-              <span className="font-mono text-indigo-500 font-semibold animate-pulse">Processing...</span>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={handleCancelAutopilot}
+                  className="px-3 py-1 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800 text-rose-200 hover:text-white rounded-lg font-bold text-[10px] tracking-wider uppercase transition-all flex items-center gap-1 cursor-pointer select-none"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                  <span>Cancel at Stage {autopilotCurrentStage}</span>
+                </button>
+                <span className="font-mono text-indigo-500 font-semibold animate-pulse">Processing...</span>
+              </div>
             </div>
           </div>
         </div>

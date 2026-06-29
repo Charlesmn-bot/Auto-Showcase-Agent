@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Zap, CheckCircle, Monitor, Info, Loader2, Download, Check, 
-  Terminal, Shield, FileText, Smartphone, Laptop, RefreshCw, AlertCircle
+  Terminal, Shield, FileText, Smartphone, Laptop, RefreshCw, AlertCircle,
+  XCircle
 } from "lucide-react";
 
 interface PWASyncSectionProps {
@@ -26,6 +27,8 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
   const [showUpgradeConsole, setShowUpgradeConsole] = useState(false);
   const [dataPreservedCheck, setDataPreservedCheck] = useState<boolean>(true);
   const [upgradedFeaturesInstalled, setUpgradedFeaturesInstalled] = useState<boolean>(false);
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(true);
+  const [newVersionDetected, setNewVersionDetected] = useState<string | null>("v2.5.0");
   const upgradeConsoleBottomRef = useRef<HTMLDivElement>(null);
 
   // PWA Sync states
@@ -43,6 +46,53 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
   const [compileLogs, setCompileLogs] = useState<string[]>([]);
   const [compiledBinaries, setCompiledBinaries] = useState<{ windows?: string; macos?: string }>({});
   const compileConsoleBottomRef = useRef<HTMLDivElement>(null);
+
+  // Active Process Interval Refs for cancellation
+  const syncIntervalRef = useRef<any>(null);
+  const upgradeIntervalRef = useRef<any>(null);
+  const compileIntervalRef = useRef<any>(null);
+
+  // Cleanup active intervals on component unmount
+  useEffect(() => {
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      if (upgradeIntervalRef.current) clearInterval(upgradeIntervalRef.current);
+      if (compileIntervalRef.current) clearInterval(compileIntervalRef.current);
+    };
+  }, []);
+
+  // Cancel PWA Sync process
+  const handleCancelPWASync = () => {
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = null;
+    }
+    setIsSyncing(false);
+    setPwaLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] PWA_SYNC: ❌ PROCESS CANCELED BY USER AT LEVEL ${syncProgress}%`]);
+    addAuditLog("WARNING", "DATABASE", `PWA Sync process manually canceled by user at ${syncProgress}%.`);
+  };
+
+  // Cancel App Upgrade process
+  const handleCancelUpgrade = () => {
+    if (upgradeIntervalRef.current) {
+      clearInterval(upgradeIntervalRef.current);
+      upgradeIntervalRef.current = null;
+    }
+    setIsUpgrading(false);
+    setUpgradeLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [UPGRADER] ❌ PROCESS CANCELED BY USER AT LEVEL ${upgradeProgress}%`]);
+    addAuditLog("WARNING", "SYSTEM", `App upgrade process manually canceled by user at ${upgradeProgress}%.`);
+  };
+
+  // Cancel Standalone Compilation process
+  const handleCancelCompilation = () => {
+    if (compileIntervalRef.current) {
+      clearInterval(compileIntervalRef.current);
+      compileIntervalRef.current = null;
+    }
+    setIsCompiling(false);
+    setCompileLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [COMPILER] ❌ COMPILATION PROCESS CANCELED BY USER AT LEVEL ${compileProgress}%`]);
+    addAuditLog("WARNING", "SYSTEM", `Compilation process manually canceled by user at ${compileProgress}%.`);
+  };
 
   // Scroll Upgrade console to bottom
   useEffect(() => {
@@ -68,6 +118,8 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
   // Run PWA Sync logic simulation
   const handleStartPWASync = () => {
     if (isSyncing) return;
+    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    
     setIsSyncing(true);
     setSyncProgress(0);
     setShowSyncLogConsole(true);
@@ -98,14 +150,15 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
     ];
 
     let stepIndex = 0;
-    const interval = setInterval(() => {
+    syncIntervalRef.current = setInterval(() => {
       if (stepIndex < steps.length) {
         const currentStep = steps[stepIndex];
         setSyncProgress(currentStep.prog);
         setPwaLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] PWA_SYNC: ${currentStep.text}`]);
         stepIndex++;
       } else {
-        clearInterval(interval);
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
         setTimeout(() => {
           setIsSyncing(false);
           setLastSyncTime(new Date().toLocaleTimeString());
@@ -116,50 +169,70 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
   };
 
   // Run Autonomous Upgrade with Data Preservation
-  const handleUpgradeApp = () => {
+  const handleUpgradeApp = (targetVer: string = "v2.5.0") => {
     if (isUpgrading) return;
+    if (upgradeIntervalRef.current) clearInterval(upgradeIntervalRef.current);
+
     setIsUpgrading(true);
     setUpgradeProgress(0);
     setShowUpgradeConsole(true);
     setUpgradedFeaturesInstalled(false);
 
     setUpgradeLogs([
-      `[${new Date().toLocaleTimeString()}] [UPGRADER] Initializing secure upgrade agent for V2.5.0 STABLE...`,
+      `[${new Date().toLocaleTimeString()}] [UPGRADER] Initializing secure upgrade agent for ${targetVer.toUpperCase()} STABLE...`,
       `[${new Date().toLocaleTimeString()}] [UPGRADER] Verifying local system architecture... Verified (React 18 + PWA Client Worker)`,
       `[${new Date().toLocaleTimeString()}] [UPGRADER] Detecting active storage paths for multi-angle car assets...`
     ]);
 
-    addAuditLog("INFO", "SYSTEM", "App upgrade routine initiated. Verifying local folder structures & preserving IndexedDB cache.");
+    addAuditLog("INFO", "SYSTEM", `App upgrade routine initiated for ${targetVer.toUpperCase()}. Verifying local folder structures & preserving IndexedDB cache.`);
 
     const steps = [
       { text: "Mapping and verifying local ingestion paths: /Intake/, /ShowroomLayouts/, /ShowroomVideos/... APPROVED", prog: 15 },
       { text: `Locating local SQLite & IndexedDB vehicle cache (${folderCounts.carMedia + folderCounts.showroomLayouts} active profiles).`, prog: 30 },
       { text: "Creating temporary schema backup of vehicle database... SECURED AND LOCK PRESERVED", prog: 45 },
       { text: "Preserving active directory links... Mappings remained attached to native user system.", prog: 60 },
-      { text: "Deploying upgraded software feature patches (Advanced Waveform visualization, Instagram Reels formats, Japanese Brand filters)...", prog: 75 },
+      { text: targetVer === "v2.6.0" 
+        ? "Deploying upgraded software feature patches (Advanced WebGPU Rendering, Multi-channel automated scheduler, Japanese JDM filters, High-Fidelity backing soundtracks)..."
+        : "Deploying upgraded software feature patches (Advanced Waveform visualization, Instagram Reels formats, Japanese Brand filters)...", prog: 75 },
       { text: "Restoring local vehicle databases & aligning cache tables... INTEGRITY CONFIRMED", prog: 90 },
       { text: "Verifying checksum signatures of upgraded standalone core modules... SHA-256 MATCH", prog: 98 },
-      { text: "Upgrade Cycle 100% COMPLETE. 0 bytes of local file data lost. Version updated to V2.5.0 STABLE!", prog: 100 }
+      { text: `Upgrade Cycle 100% COMPLETE. 0 bytes of local file data lost. Version updated to ${targetVer.toUpperCase()} STABLE!`, prog: 100 }
     ];
 
     let stepIndex = 0;
-    const interval = setInterval(() => {
+    upgradeIntervalRef.current = setInterval(() => {
       if (stepIndex < steps.length) {
         const currentStep = steps[stepIndex];
         setUpgradeProgress(currentStep.prog);
         setUpgradeLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [UPGRADER] ${currentStep.text}`]);
         stepIndex++;
       } else {
-        clearInterval(interval);
+        clearInterval(upgradeIntervalRef.current);
+        upgradeIntervalRef.current = null;
         setTimeout(() => {
           setIsUpgrading(false);
-          setAppVersion("v2.5.0");
+          setAppVersion(targetVer);
           setUpgradedFeaturesInstalled(true);
-          addAuditLog("SUCCESS", "SYSTEM", "Successfully upgraded SMedia Auto Post app to v2.5.0-STABLE. Local folder and database data fully preserved.");
+          setNewVersionDetected(null);
+          addAuditLog("SUCCESS", "SYSTEM", `Successfully upgraded SMedia Auto Post app to ${targetVer.toUpperCase()}-STABLE. Local folder and database data fully preserved.`);
         }, 300);
       }
     }, 600);
   };
+
+  // Automated background scheduler for background updates
+  useEffect(() => {
+    if (!autoUpdateEnabled) return;
+
+    if (newVersionDetected && !isUpgrading) {
+      const autoTimer = setTimeout(() => {
+        addAuditLog("WARNING", "SYSTEM", `Automated Update System: New build ${newVersionDetected.toUpperCase()} detected on release server. Initiating seamless zero-downtime background upgrade...`);
+        handleUpgradeApp(newVersionDetected);
+      }, 3500); // Wait 3.5 seconds before auto-upgrading to give user time to notice the live telemetry status
+
+      return () => clearTimeout(autoTimer);
+    }
+  }, [newVersionDetected, autoUpdateEnabled, isUpgrading]);
 
   // Generate & download local PWA bundle package to computer
   const triggerPwaDownload = () => {
@@ -233,14 +306,15 @@ export default function PWASyncSection({ folderCounts, addAuditLog }: PWASyncSec
     ];
 
     let stepIndex = 0;
-    const interval = setInterval(() => {
+    compileIntervalRef.current = setInterval(() => {
       if (stepIndex < steps.length) {
         const currentStep = steps[stepIndex];
         setCompileProgress(currentStep.prog);
         setCompileLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [COMPILER] ${currentStep.text}`]);
         stepIndex++;
       } else {
-        clearInterval(interval);
+        clearInterval(compileIntervalRef.current);
+        compileIntervalRef.current = null;
         setTimeout(() => {
           setIsCompiling(false);
           const extension = platform === "windows" ? ".exe" : ".dmg";
@@ -404,6 +478,17 @@ Status: VERIFIED SAFE SECURED BUILD`;
                 )}
               </button>
 
+              {isSyncing && (
+                <button
+                  type="button"
+                  onClick={handleCancelPWASync}
+                  className="w-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition duration-150 cursor-pointer select-none font-extrabold text-[10px] tracking-wider uppercase font-sans shadow-sm"
+                >
+                  <XCircle className="w-4 h-4 text-rose-600 animate-pulse" />
+                  <span>CANCEL SYNCHRONIZATION</span>
+                </button>
+              )}
+
               {/* Standalone local PWA web installer downloader */}
               <button
                 type="button"
@@ -518,11 +603,22 @@ Status: VERIFIED SAFE SECURED BUILD`;
               )}
             </div>
 
+            {isCompiling && (
+              <button
+                type="button"
+                onClick={handleCancelCompilation}
+                className="w-full bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition duration-150 cursor-pointer select-none font-extrabold text-[10px] tracking-wider uppercase font-sans shadow-sm"
+              >
+                <XCircle className="w-4 h-4 text-rose-400 animate-pulse" />
+                <span>CANCEL COMPILATION BUILD</span>
+              </button>
+            )}
+
             {/* Bottom Info Banner */}
             <div className="bg-[#25233c] border border-[#39355f] rounded-2xl px-4 py-3 flex items-center space-x-3 text-slate-300">
               <Info className="w-4 h-4 text-[#8b73ff] shrink-0" />
               <span className="text-[10px] font-bold tracking-wide uppercase font-sans text-slate-400">
-                AUTO-UPDATE: ENABLED <span className="text-[#a08dff] font-extrabold">({appVersion.toUpperCase()} STABLE)</span>
+                AUTO-UPDATE: {autoUpdateEnabled ? "ENABLED" : "DISABLED"} <span className="text-[#a08dff] font-extrabold">({appVersion.toUpperCase()} STABLE)</span>
               </span>
             </div>
 
@@ -552,9 +648,13 @@ Status: VERIFIED SAFE SECURED BUILD`;
             <span className="bg-slate-950 border border-slate-800 px-3 py-1 rounded-full text-slate-400 font-mono">
               Current Build: <span className="text-white font-mono">{appVersion}</span>
             </span>
-            {upgradedFeaturesInstalled ? (
+            {newVersionDetected ? (
+              <span className="bg-amber-950 text-amber-400 border border-amber-800 px-3 py-1 rounded-full animate-pulse flex items-center gap-1 font-mono">
+                <Zap className="w-3 h-3 text-amber-400 animate-bounce" /> {newVersionDetected.toUpperCase()} detected {autoUpdateEnabled ? "(Auto-upgrading...)" : "(Ready)"}
+              </span>
+            ) : upgradedFeaturesInstalled ? (
               <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 px-3 py-1 rounded-full flex items-center gap-1 font-mono">
-                <Check className="w-3.5 h-3.5" /> Upgraded to v2.5.0 STABLE
+                <Check className="w-3.5 h-3.5 text-emerald-400" /> Upgraded to {appVersion.toUpperCase()} STABLE
               </span>
             ) : (
               <span className="bg-indigo-950 text-indigo-400 border border-indigo-800 px-3 py-1 rounded-full animate-pulse font-mono">
@@ -590,42 +690,102 @@ Status: VERIFIED SAFE SECURED BUILD`;
             </span>
           </div>
 
-          <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/50 space-y-1.5 text-left flex flex-col justify-between">
+          <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/50 space-y-3.5 text-left flex flex-col justify-between">
             <div>
-              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block font-bold">Version Upgrade Controls</span>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block font-bold">Update Controls</span>
+                <span className={`text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded ${autoUpdateEnabled ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate-800 text-slate-400"}`}>
+                  {autoUpdateEnabled ? "AUTO: ACTIVE" : "AUTO: PAUSED"}
+                </span>
+              </div>
               <p className="text-[10.5px] text-slate-400 mt-1 font-sans leading-relaxed">
-                Trigger end-to-end upgrade sequencing to deploy v2.5.0-STABLE features instantly.
+                App syncs with release branch automatically to trigger seamless schema migrations.
               </p>
             </div>
 
-            <button
-              onClick={handleUpgradeApp}
-              disabled={isUpgrading || appVersion === "v2.5.0"}
-              className={`w-full py-2.5 px-4 rounded-xl font-bold font-sans tracking-wide text-xs transition duration-200 cursor-pointer ${
-                appVersion === "v2.5.0"
-                  ? "bg-slate-850 text-emerald-400 border border-slate-800 flex items-center justify-center gap-1.5"
-                  : isUpgrading
-                  ? "bg-indigo-950/30 text-indigo-400 border border-indigo-800 animate-pulse"
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1"
-              }`}
-            >
-              {appVersion === "v2.5.0" ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>UPGRADED TO V2.5.0-STABLE</span>
-                </>
-              ) : isUpgrading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>MIGRATING VERSION {upgradeProgress}%...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>RUN SECURE APP UPGRADE (v2.5.0)</span>
-                </>
+            <div className="space-y-2">
+              {/* Auto Update Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  const newVal = !autoUpdateEnabled;
+                  setAutoUpdateEnabled(newVal);
+                  addAuditLog("INFO", "SYSTEM", `Auto-Update mode toggled to: ${newVal ? "ENABLED" : "DISABLED"}`);
+                }}
+                className={`w-full py-2 px-3 rounded-xl font-bold font-sans tracking-wide text-[10px] transition duration-200 cursor-pointer flex items-center justify-center gap-1.5 border ${
+                  autoUpdateEnabled 
+                    ? "bg-emerald-950/20 hover:bg-emerald-950/35 text-emerald-400 border-emerald-800/40" 
+                    : "bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-800"
+                }`}
+              >
+                <Zap className={`w-3.5 h-3.5 ${autoUpdateEnabled ? "animate-pulse text-emerald-400" : "text-slate-400"}`} />
+                <span>{autoUpdateEnabled ? "DISABLE AUTO-UPDATES" : "ENABLE AUTO-UPDATES"}</span>
+              </button>
+
+              {/* Upgrade Trigger Button */}
+              <button
+                onClick={() => handleUpgradeApp(newVersionDetected || "v2.5.0")}
+                disabled={isUpgrading || (!newVersionDetected && appVersion !== "v2.4.0")}
+                className={`w-full py-2.5 px-4 rounded-xl font-bold font-sans tracking-wide text-xs transition duration-200 cursor-pointer ${
+                  isUpgrading
+                    ? "bg-indigo-950/30 text-indigo-400 border border-indigo-800 animate-pulse"
+                    : newVersionDetected 
+                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1"
+                    : appVersion !== "v2.4.0"
+                    ? "bg-slate-850 text-emerald-400 border border-slate-800 flex items-center justify-center gap-1.5"
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md cursor-pointer"
+                }`}
+              >
+                {isUpgrading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>UPGRADING {upgradeProgress}%...</span>
+                  </>
+                ) : newVersionDetected ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin-slow" />
+                    <span>FORCE MANUAL RUN ({newVersionDetected})</span>
+                  </>
+                ) : appVersion !== "v2.4.0" ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>RUNNING LATEST ({appVersion.toUpperCase()})</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>FORCE UPGRADE TO V2.5.0</span>
+                  </>
+                )}
+              </button>
+
+              {isUpgrading && (
+                <button
+                  type="button"
+                  onClick={handleCancelUpgrade}
+                  className="w-full bg-rose-950/40 hover:bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl py-2 px-3 flex items-center justify-center gap-1.5 transition duration-150 cursor-pointer select-none font-bold text-[10px] tracking-wide uppercase font-sans"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                  <span>CANCEL UPGRADE PROCESS</span>
+                </button>
               )}
-            </button>
+
+              {/* Simulation Push New Version Trigger */}
+              {(appVersion === "v2.5.0" || appVersion === "V2.5.0") && !newVersionDetected && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewVersionDetected("v2.6.0");
+                    setUpgradedFeaturesInstalled(false);
+                    addAuditLog("INFO", "SYSTEM", "Simulated deployment: New production build v2.6.0-STABLE pushed to cloud registry.");
+                  }}
+                  className="w-full py-2 px-3 bg-indigo-950 hover:bg-indigo-900 border border-indigo-800/40 text-indigo-300 rounded-xl font-bold font-sans text-[10px] tracking-wide transition duration-150 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>SIMULATE SERVER v2.6.0 RELEASE</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

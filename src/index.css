@@ -16,7 +16,7 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #e6f7f6;
+  background-color: #D8F8FF;
   color: #0f172a;
 }
 
@@ -26,7 +26,7 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #e6f7f6;
+  background: #D8F8FF;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
